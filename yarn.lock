@@ -473,6 +473,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@findeth/abi@npm:^0.7.1":
+  version: 0.7.1
+  resolution: "@findeth/abi@npm:0.7.1"
+  checksum: 2657a946b912c7a837f4d6ddf2027c090e5c8737c8c33178fee6246d136af02e4621ef5aea43c2fe738d5ab8c95a8faef52d1f89e15c924888acbbcdfcee863b
+  languageName: node
+  linkType: hard
+
 "@humanwhocodes/config-array@npm:^0.5.0":
   version: 0.5.0
   resolution: "@humanwhocodes/config-array@npm:0.5.0"
@@ -488,6 +495,16 @@ __metadata:
   version: 1.2.0
   resolution: "@humanwhocodes/object-schema@npm:1.2.0"
   checksum: 40b75480376de8104d65f7c44a7dd76d30fb57823ca8ba3a3239b2b568323be894d93440578a72fd8e5e2cc3df3577ce0d2f0fe308b990dd51cf35392bf3c9a2
+  languageName: node
+  linkType: hard
+
+"@mycrypto/eth-scan@npm:^3.4.4":
+  version: 3.4.4
+  resolution: "@mycrypto/eth-scan@npm:3.4.4"
+  dependencies:
+    "@findeth/abi": ^0.7.1
+    isomorphic-unfetch: ^3.1.0
+  checksum: c7d2ac94eb7265b4060de1a81ebc8a6b92f7a22f4a78036ca79de195e4a7c30b6d4513b36cf28c7767e8f0d35018350f82b8b1f89b596ac6ed04a942ff290603
   languageName: node
   linkType: hard
 
@@ -1543,6 +1560,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "esm-typescript-yarn3-skeleton@workspace:."
   dependencies:
+    "@mycrypto/eth-scan": ^3.4.4
     "@types/chai": ^4
     "@types/mocha": ^9.0.0
     "@types/node": ^16.6.1
@@ -2226,6 +2244,16 @@ fsevents@~2.3.2:
   languageName: node
   linkType: hard
 
+"isomorphic-unfetch@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "isomorphic-unfetch@npm:3.1.0"
+  dependencies:
+    node-fetch: ^2.6.1
+    unfetch: ^4.2.0
+  checksum: 82b92fe4ec2823a81ab0fc0d11bd94d710e6f9a940d56b3cba31896d4345ec9ffc7949f4ff31ebcae84f6b95f7ebf3474c4c7452b834eb4078ea3f2c37e459c5
+  languageName: node
+  linkType: hard
+
 "js-sha3@npm:0.5.7":
   version: 0.5.7
   resolution: "js-sha3@npm:0.5.7"
@@ -2636,6 +2664,13 @@ fsevents@~2.3.2:
   version: 1.4.0
   resolution: "natural-compare@npm:1.4.0"
   checksum: 23ad088b08f898fc9b53011d7bb78ec48e79de7627e01ab5518e806033861bef68d5b0cd0e2205c2f36690ac9571ff6bcb05eb777ced2eeda8d4ac5b44592c3d
+  languageName: node
+  linkType: hard
+
+"node-fetch@npm:^2.6.1":
+  version: 2.6.1
+  resolution: "node-fetch@npm:2.6.1"
+  checksum: 91075bedd57879117e310fbcc36983ad5d699e522edb1ebcdc4ee5294c982843982652925c3532729fdc86b2d64a8a827797a745f332040d91823c8752ee4d7c
   languageName: node
   linkType: hard
 
@@ -3464,6 +3499,13 @@ typescript@^4.3.5:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: bc2c4fdf0f1557fdafe4ef74848c72ebd9c8c60829568248f869121aea2bb20e16649a252431d0acb185ec118143be22bed73d08f64379557810d82756afedde
+  languageName: node
+  linkType: hard
+
+"unfetch@npm:^4.2.0":
+  version: 4.2.0
+  resolution: "unfetch@npm:4.2.0"
+  checksum: 6a4b2557e1d921eaa80c4425ce27a404945ec26491ed06e62598f333996a91a44c7908cb26dc7c2746d735762b13276cf4aa41829b4c8f438dde63add3045d7a
   languageName: node
   linkType: hard
 

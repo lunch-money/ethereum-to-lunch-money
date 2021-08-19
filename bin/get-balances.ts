@@ -5,12 +5,14 @@ import fs from 'node:fs/promises';
 import url from 'node:url';
 
 import ethers from 'ethers';
+import ethscan from '@mycrypto/eth-scan';
+
+const NEGLIGIBLE_BALANCE_THRESHOLD = 1000;
 
 assert(import.meta.resolve);
 
 const tokenListPath = url.fileURLToPath(await import.meta.resolve('../fixtures/1inch.json'));
 const tokenList = JSON.parse((await fs.readFile(tokenListPath)).toString('utf-8'));
-// import tokenList from '../fixtures/1inch.json';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -43,16 +45,19 @@ const ethBalance = ethers.utils.formatEther(weiBalance);
 
 console.log(`ETH: ${ethBalance}`);
 
-const abi = [
-  // Stub the ERC-20 token ABI with the only method we care about here,
-  // 'balanceOf'.
-  'function balanceOf(address owner) view returns (uint256)',
-];
+const map = await ethscan.getTokensBalance(
+  provider,
+  walletAddress,
+  tokenList.tokens.map((t: any) => t.address),
+);
 
-for (const token of tokenList.tokens) {
-  const tokenContract = new ethers.Contract(token.address, abi, provider);
-  const tokenBalance = await tokenContract.balanceOf(walletAddress);
-  if (tokenBalance > 1e-4) {
+for (const [tokenAddress, tokenBalance] of Object.entries(map)) {
+  // const tokenContract = new ethers.Contract(token.address, abi, provider);
+  // const tokenBalance = await tokenContract.balanceOf(walletAddress);
+  const token = tokenList.tokens.find((t: any) => t.address === tokenAddress);
+  assert(token);
+
+  if (tokenBalance > NEGLIGIBLE_BALANCE_THRESHOLD) {
     console.log(`${token.symbol}: ${ethers.utils.formatEther(tokenBalance)}`);
   }
 }
