@@ -52,8 +52,6 @@ const map = await ethscan.getTokensBalance(
 );
 
 for (const [tokenAddress, tokenBalance] of Object.entries(map)) {
-  // const tokenContract = new ethers.Contract(token.address, abi, provider);
-  // const tokenBalance = await tokenContract.balanceOf(walletAddress);
   const token = tokenList.tokens.find((t: any) => t.address === tokenAddress);
   assert(token);
 
