@@ -3,11 +3,8 @@
 import assert from 'node:assert';
 
 import ethers from 'ethers';
-import ethscan from '@mycrypto/eth-scan';
 
-import { loadTokenList } from '../src/client.js';
-
-const NEGLIGIBLE_BALANCE_THRESHOLD = 1000;
+import { loadTokenBalances, loadTokenList } from '../src/client.js';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -35,24 +32,11 @@ const provider = ethers.providers.getDefaultProvider('homestead', {
   //   applicationSecretKey:
   // }
 });
-const weiBalance = await provider.getBalance(walletAddress);
-const ethBalance = ethers.utils.formatEther(weiBalance);
-
-console.log(`ETH: ${ethBalance}`);
 
 const tokenList = await loadTokenList();
 
-const map = await ethscan.getTokensBalance(
-  provider,
-  walletAddress,
-  tokenList.map((t: any) => t.address),
-);
+const balances = await loadTokenBalances(walletAddress, tokenList, provider);
 
-for (const [tokenAddress, tokenBalance] of Object.entries(map)) {
-  const token = tokenList.find((t: any) => t.address === tokenAddress);
-  assert(token);
-
-  if (tokenBalance > NEGLIGIBLE_BALANCE_THRESHOLD) {
-    console.log(`${token.symbol}: ${ethers.utils.formatEther(tokenBalance)}`);
-  }
+for (const [tokenSymbol, tokenBalance] of Object.entries(balances)) {
+  console.log(`${tokenSymbol}: ${tokenBalance}`);
 }
