@@ -1,18 +1,13 @@
 #!/usr/bin/env node --loader ts-node/esm --experimental-import-meta-resolve
 
 import assert from 'node:assert';
-import fs from 'node:fs/promises';
-import url from 'node:url';
 
 import ethers from 'ethers';
 import ethscan from '@mycrypto/eth-scan';
 
+import { loadTokenList } from '../src/client.js';
+
 const NEGLIGIBLE_BALANCE_THRESHOLD = 1000;
-
-assert(import.meta.resolve);
-
-const tokenListPath = url.fileURLToPath(await import.meta.resolve('../fixtures/1inch.json'));
-const tokenList = JSON.parse((await fs.readFile(tokenListPath)).toString('utf-8'));
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -45,14 +40,16 @@ const ethBalance = ethers.utils.formatEther(weiBalance);
 
 console.log(`ETH: ${ethBalance}`);
 
+const tokenList = await loadTokenList();
+
 const map = await ethscan.getTokensBalance(
   provider,
   walletAddress,
-  tokenList.tokens.map((t: any) => t.address),
+  tokenList.map((t: any) => t.address),
 );
 
 for (const [tokenAddress, tokenBalance] of Object.entries(map)) {
-  const token = tokenList.tokens.find((t: any) => t.address === tokenAddress);
+  const token = tokenList.find((t: any) => t.address === tokenAddress);
   assert(token);
 
   if (tokenBalance > NEGLIGIBLE_BALANCE_THRESHOLD) {
