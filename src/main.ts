@@ -4,9 +4,11 @@ import {
   LunchMoneyCryptoConnectionConfig,
 } from './types.js';
 
-import { loadTokenList, weiToEth, EthereumWalletClient } from './client.js';
+import { loadTokenList, EthereumWalletClient } from './client.js';
+import ethers from 'ethers';
 
 export { LunchMoneyCryptoConnection } from './types.js';
+export { createEthereumWalletClient, EthereumWalletClient } from './client.js';
 
 /** The minimum balance (in wei) that a token should have in order to be
  * considered for returning as a balance. */
@@ -39,16 +41,13 @@ export const LunchMoneyEthereumWalletConnection: LunchMoneyCryptoConnection<
     );
 
     const balances = tokenList
-      .flatMap(({ address, symbol }) => {
-        const amount = map[address] ?? 0;
-        if (amount > negligibleBalanceThreshold) {
-          return [{ asset: symbol, amount }];
-        } else {
-          return [];
-        }
-      })
+      .map((t) => ({
+        asset: t.symbol,
+        amount: map[t.address] ?? 0,
+      }))
       .concat({ asset: 'ETH', amount: weiBalance })
-      .map(weiToEth)
+      .filter((b) => b.amount > negligibleBalanceThreshold)
+      .map(({ asset, amount }) => ({ asset, amount: ethers.utils.formatEther(amount) }))
       .sort((a, b) => a.asset.localeCompare(b.asset));
 
     return {

@@ -1,5 +1,6 @@
 import assert from 'node:assert';
 import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import url from 'node:url';
 
 import ethscan from '@mycrypto/eth-scan';
@@ -32,14 +33,8 @@ interface Token {
 }
 
 export const loadTokenList = mem(async (): Promise<Token[]> => {
-  assert(import.meta.resolve);
-
-  const tokenListPath = url.fileURLToPath(await import.meta.resolve('../fixtures/1inch.json'));
+  const require = createRequire(import.meta.url);
+  const tokenListPath = require.resolve('../fixtures/1inch.json');
   const tokenList = JSON.parse((await fs.readFile(tokenListPath)).toString('utf-8'));
   return tokenList.tokens;
-});
-
-export const weiToEth = ({ asset, amount }: { asset: string; amount: bigint }): CryptoBalance => ({
-  asset,
-  amount: ethers.utils.formatEther(amount),
 });

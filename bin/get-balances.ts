@@ -1,11 +1,10 @@
-#!/usr/bin/env node --loader ts-node/esm --experimental-import-meta-resolve
+#!/usr/bin/env node --loader ts-node/esm
 
 import assert from 'node:assert';
 
 import ethers from 'ethers';
 
-import { createEthereumWalletClient } from '../src/client.js';
-import { LunchMoneyEthereumWalletConnection } from '../src/main.js';
+import { LunchMoneyEthereumWalletConnection, createEthereumWalletClient } from '../src/main.js';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
