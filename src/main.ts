@@ -40,12 +40,10 @@ export const LunchMoneyEthereumWalletConnection: LunchMoneyCryptoConnection<
       tokenList.map((t) => t.address),
     );
 
-    const balances = Object.entries(map).flatMap(([tokenAddress, amount]) => {
-      const token = tokenList.find((t) => t.address === tokenAddress);
-      assert(token);
-
+    const balances = tokenList.flatMap(({ address, symbol }) => {
+      const amount = map[address] ?? 0;
       if (amount > (config.negligibleBalanceThreshold ?? NEGLIGIBLE_BALANCE_THRESHOLD)) {
-        return [{ asset: token.symbol, amount }];
+        return [{ asset: symbol, amount }];
       } else {
         return [];
       }
