@@ -34,9 +34,8 @@ const provider = ethers.providers.getDefaultProvider('homestead', {
 });
 
 const tokenList = await loadTokenList();
+const resp = await loadTokenBalances(walletAddress, tokenList, provider);
 
-const balances = await loadTokenBalances(walletAddress, tokenList, provider);
-
-for (const [tokenSymbol, tokenBalance] of Object.entries(balances)) {
-  console.log(`${tokenSymbol}: ${tokenBalance}`);
+for (const { asset, amount } of resp.balances) {
+  console.log(`${asset}: ${amount}`);
 }

@@ -2,7 +2,6 @@ import {
   LunchMoneyCryptoConnection,
   LunchMoneyCryptoConnectionContext,
   LunchMoneyCryptoConnectionConfig,
-  CryptoBalance,
 } from './types.js';
 
 import { EthereumWalletClient } from './client.js';
@@ -12,6 +11,7 @@ export { LunchMoneyCryptoConnection } from './types.js';
 interface LunchMoneyEthereumWalletConnectionConfig extends LunchMoneyCryptoConnectionConfig {
   /** The unique ID of the user's wallet address on the blockchain. */
   walletAddress: string;
+  negligibleBalanceThreshold?: number;
 }
 
 interface LunchMoneyEthereumWalletConnectionContext extends LunchMoneyCryptoConnectionContext {
