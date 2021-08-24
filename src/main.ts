@@ -4,7 +4,9 @@ import {
   LunchMoneyCryptoConnectionConfig,
 } from './types.js';
 
-import { EthereumWalletClient } from './client.js';
+import type ethers from 'ethers';
+
+import { loadTokenBalances, loadTokenList } from './client.js';
 
 export { LunchMoneyCryptoConnection } from './types.js';
 
@@ -15,7 +17,7 @@ interface LunchMoneyEthereumWalletConnectionConfig extends LunchMoneyCryptoConne
 }
 
 interface LunchMoneyEthereumWalletConnectionContext extends LunchMoneyCryptoConnectionContext {
-  ethereumWalletClient: typeof EthereumWalletClient;
+  provider: ethers.providers.BaseProvider;
 }
 
 export const LunchMoneyEthereumWalletConnection: LunchMoneyCryptoConnection<
@@ -26,9 +28,7 @@ export const LunchMoneyEthereumWalletConnection: LunchMoneyCryptoConnection<
     return this.getBalances(config, context);
   },
   async getBalances(config, context) {
-    return {
-      providerName: 'wallet_ethereum',
-      balances,
-    };
+    const tokenList = await loadTokenList();
+    return loadTokenBalances(config.walletAddress, tokenList, context.provider);
   },
 };

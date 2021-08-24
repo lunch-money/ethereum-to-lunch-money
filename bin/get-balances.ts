@@ -4,7 +4,7 @@ import assert from 'node:assert';
 
 import ethers from 'ethers';
 
-import { loadTokenBalances, loadTokenList } from '../src/client.js';
+import { LunchMoneyEthereumWalletConnection } from '../src/main.js';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -33,8 +33,7 @@ const provider = ethers.providers.getDefaultProvider('homestead', {
   // }
 });
 
-const tokenList = await loadTokenList();
-const resp = await loadTokenBalances(walletAddress, tokenList, provider);
+const resp = await LunchMoneyEthereumWalletConnection.getBalances({ walletAddress }, { provider });
 
 for (const { asset, amount } of resp.balances) {
   console.log(`${asset}: ${amount}`);
