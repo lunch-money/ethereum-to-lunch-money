@@ -33,11 +33,31 @@ describe('LunchMoneyEthereumWalletConnection', () => {
     });
 
     describe('when the wallet has an ETH amount more than the neglible balance threshold', () => {
-      it('outputs the ETH balance amount');
+      it('outputs the ETH balance amount', async () => {
+        mockClient.getWeiBalance.resolves(1000);
+        mockClient.getTokensBalance.resolves({});
+
+        const response = await underTest.getBalances(dummyConfig, dummyContext);
+
+        assert.deepEqual(response, {
+          providerName: 'wallet_ethereum',
+          balances: [{ asset: 'ETH', amount: '0.000000000000001' }],
+        });
+      });
     });
 
     describe('when the wallet contains no tokens', () => {
-      it('outputs nothing');
+      it('outputs nothing', async () => {
+        mockClient.getWeiBalance.resolves(0);
+        mockClient.getTokensBalance.resolves({});
+
+        const response = await underTest.getBalances(dummyConfig, dummyContext);
+
+        assert.deepEqual(response, {
+          providerName: 'wallet_ethereum',
+          balances: [],
+        });
+      });
     });
 
     describe('when the wallet contains tokens', () => {
