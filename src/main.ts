@@ -6,10 +6,7 @@ import {
   LunchMoneyCryptoConnectionConfig,
 } from './types.js';
 
-import ethscan from '@mycrypto/eth-scan';
-import type ethers from 'ethers';
-
-import { loadTokenList, weiToEth } from './client.js';
+import { loadTokenList, weiToEth, EthereumWalletClient } from './client.js';
 
 export { LunchMoneyCryptoConnection } from './types.js';
 
@@ -24,7 +21,7 @@ interface LunchMoneyEthereumWalletConnectionConfig extends LunchMoneyCryptoConne
 }
 
 interface LunchMoneyEthereumWalletConnectionContext extends LunchMoneyCryptoConnectionContext {
-  provider: ethers.providers.BaseProvider;
+  client: EthereumWalletClient;
 }
 
 export const LunchMoneyEthereumWalletConnection: LunchMoneyCryptoConnection<
@@ -35,11 +32,10 @@ export const LunchMoneyEthereumWalletConnection: LunchMoneyCryptoConnection<
     return this.getBalances(config, context);
   },
   async getBalances(config, context) {
-    const tokenList = await loadTokenList();
-    const weiBalance = await context.provider.getBalance(config.walletAddress);
+    const weiBalance = await context.client.getWeiBalance(config.walletAddress);
 
-    const map = await ethscan.getTokensBalance(
-      context.provider,
+    const tokenList = await loadTokenList();
+    const map = await context.client.getTokensBalance(
       config.walletAddress,
       tokenList.map((t) => t.address),
     );

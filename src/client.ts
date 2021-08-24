@@ -2,10 +2,25 @@ import assert from 'node:assert';
 import fs from 'node:fs/promises';
 import url from 'node:url';
 
+import ethscan from '@mycrypto/eth-scan';
 import ethers, { BigNumberish } from 'ethers';
 import mem from 'mem';
 
 import { CryptoBalance } from './types.js';
+
+export interface EthereumWalletClient {
+  getWeiBalance(walletAddress: string): Promise<bigint>;
+  getTokensBalance(walletAddress: string, tokenContractAddresses: string[]): Promise<ethscan.BalanceMap<bigint>>;
+}
+
+export const createEthereumWalletClient = (provider: ethers.providers.BaseProvider): EthereumWalletClient => ({
+  async getWeiBalance(walletAddress) {
+    return (await provider.getBalance(walletAddress)).toBigInt();
+  },
+  async getTokensBalance(walletAddress, tokenContractAddresses) {
+    return ethscan.getTokensBalance(provider, walletAddress, tokenContractAddresses);
+  },
+});
 
 interface Token {
   address: string;
@@ -24,7 +39,7 @@ export const loadTokenList = mem(async (): Promise<Token[]> => {
   return tokenList.tokens;
 });
 
-export const weiToEth = ({ asset, amount }: { asset: string; amount: BigNumberish }): CryptoBalance => ({
+export const weiToEth = ({ asset, amount }: { asset: string; amount: bigint }): CryptoBalance => ({
   asset,
   amount: ethers.utils.formatEther(amount),
 });
