@@ -1,13 +1,9 @@
-import assert from 'node:assert';
 import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import url from 'node:url';
 
 import ethscan from '@mycrypto/eth-scan';
 import ethers from 'ethers';
 import mem from 'mem';
-
-import { CryptoBalance } from './types.js';
 
 export interface EthereumWalletClient {
   getWeiBalance(walletAddress: string): Promise<bigint>;

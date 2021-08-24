@@ -1,7 +1,7 @@
 import { assert } from 'chai';
 import sinon from 'sinon';
 
-import { EthereumWalletClient, LunchMoneyEthereumWalletConnection as underTest } from '../src/main.js';
+import { LunchMoneyEthereumWalletConnection as underTest } from '../src/main.js';
 
 describe('LunchMoneyEthereumWalletConnection', () => {
   const dummyConfig = {
