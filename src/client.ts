@@ -43,22 +43,19 @@ export const loadTokenBalances = async (
     tokenList.map((t) => t.address),
   );
 
-  const balances = Object.entries(map).flatMap(
-    ([tokenAddress, tokenBalance]: [string, bigint]) => {
-      const token = tokenList.find((t) => t.address === tokenAddress);
-      assert(token);
+  const balances = Object.entries(map).flatMap(([tokenAddress, tokenBalance]) => {
+    const token = tokenList.find((t) => t.address === tokenAddress);
+    assert(token);
 
-      if (tokenBalance > NEGLIGIBLE_BALANCE_THRESHOLD) {
-        return [{ asset: token.symbol, amount: ethers.utils.formatEther(tokenBalance) }];
-      } else {
-        return [];
-      }
-    },
-    [{ asset: 'ETH', amount: ethBalance }],
-  );
+    if (tokenBalance > NEGLIGIBLE_BALANCE_THRESHOLD) {
+      return [{ asset: token.symbol, amount: ethers.utils.formatEther(tokenBalance) }];
+    } else {
+      return [];
+    }
+  });
 
   return {
     providerName: 'wallet_ethereum',
-    balances,
+    balances: [{ asset: 'ETH', amount: ethBalance }, ...balances],
   };
 };
