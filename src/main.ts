@@ -1,5 +1,3 @@
-import assert from 'node:assert';
-
 import {
   LunchMoneyCryptoConnection,
   LunchMoneyCryptoConnectionContext,
@@ -31,27 +29,31 @@ export const LunchMoneyEthereumWalletConnection: LunchMoneyCryptoConnection<
   async initiate(config, context) {
     return this.getBalances(config, context);
   },
-  async getBalances(config, context) {
-    const weiBalance = await context.client.getWeiBalance(config.walletAddress);
+  async getBalances({ walletAddress, negligibleBalanceThreshold = NEGLIGIBLE_BALANCE_THRESHOLD }, { client }) {
+    const weiBalance = await client.getWeiBalance(walletAddress);
 
     const tokenList = await loadTokenList();
-    const map = await context.client.getTokensBalance(
-      config.walletAddress,
+    const map = await client.getTokensBalance(
+      walletAddress,
       tokenList.map((t) => t.address),
     );
 
-    const balances = tokenList.flatMap(({ address, symbol }) => {
-      const amount = map[address] ?? 0;
-      if (amount > (config.negligibleBalanceThreshold ?? NEGLIGIBLE_BALANCE_THRESHOLD)) {
-        return [{ asset: symbol, amount }];
-      } else {
-        return [];
-      }
-    });
+    const balances = tokenList
+      .flatMap(({ address, symbol }) => {
+        const amount = map[address] ?? 0;
+        if (amount > negligibleBalanceThreshold) {
+          return [{ asset: symbol, amount }];
+        } else {
+          return [];
+        }
+      })
+      .concat({ asset: 'ETH', amount: weiBalance })
+      .map(weiToEth)
+      .sort((a, b) => a.asset.localeCompare(b.asset));
 
     return {
       providerName: 'wallet_ethereum',
-      balances: [{ asset: 'ETH', amount: weiBalance }, ...balances].map(weiToEth),
+      balances,
     };
   },
 };

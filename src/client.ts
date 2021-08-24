@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import url from 'node:url';
 
 import ethscan from '@mycrypto/eth-scan';
-import ethers, { BigNumberish } from 'ethers';
+import ethers from 'ethers';
 import mem from 'mem';
 
 import { CryptoBalance } from './types.js';
