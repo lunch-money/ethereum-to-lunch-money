@@ -40,7 +40,7 @@
     "clean": "rm -rf dist",
     "build": "yarn clean && tsc -p tsconfig.build-mjs.json && tsc -p tsconfig.build-cjs.json && ./postbuild",
     "lint": "eslint '{src,test}/**/*.{js,ts,tsx}' --fix",
-    "test": "node --loader ts-node/esm node_modules/mocha/lib/cli/cli --recursive --extension ts",
+    "test": "node  --experimental-json-modules --loader ts-node/esm node_modules/mocha/lib/cli/cli --recursive --extension ts",
     "prepare": "husky install"
   },
   "devDependencies": {

@@ -1,9 +1,8 @@
-import fs from 'node:fs/promises';
-import { createRequire } from 'node:module';
-
 import ethscan from '@mycrypto/eth-scan';
 import ethers from 'ethers';
 import mem from 'mem';
+
+import tokenList1inch from '../fixtures/1inch.json';
 
 export interface EthereumWalletClient {
   getWeiBalance(walletAddress: string): Promise<bigint>;
@@ -21,7 +20,7 @@ export const createEthereumWalletClient = (provider: ethers.providers.BaseProvid
 
 interface Token {
   address: string;
-  chainId: string;
+  chainId: number;
   name: string;
   symbol: string;
   decimals: number;
@@ -29,8 +28,5 @@ interface Token {
 }
 
 export const loadTokenList = mem(async (): Promise<Token[]> => {
-  const require = createRequire(import.meta.url);
-  const tokenListPath = require.resolve('../fixtures/1inch.json');
-  const tokenList = JSON.parse((await fs.readFile(tokenListPath)).toString('utf-8'));
-  return tokenList.tokens;
+  return tokenList1inch.tokens;
 });
