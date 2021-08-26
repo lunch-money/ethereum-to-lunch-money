@@ -1,39 +1,47 @@
 {
-  "name": "esm-typescript-yarn3-skeleton",
+  "name": "@lunch-money/ethereum-to-lunch-money",
   "private": true,
   "packageManager": "yarn@3.0.1",
   "author": {
     "name": "Max Dumas",
     "email": "maltor124@gmail.com"
   },
-  "bugs": "https://github.com/maxdumas/esm-typescript-yarn3-skeleton/issues",
-  "homepage": "https://github.com/maxdumas/esm-typescript-yarn3-skeleton#README",
+  "bugs": "https://github.com/lunch-money/ethereum-to-lunch-money/issues",
+  "homepage": "https://github.com/lunch-money/ethereum-to-lunch-money#README",
   "version": "1.0.0",
   "license": "MIT",
   "keywords": [
     "lunch money",
-    "binance",
+    "ethereum",
     "budgeting"
   ],
-  "description": "A wrapper around the Binance API for enabling Lunch Money to gather information about a user's account.",
-  "repository": "github:maxdumas/binance-to-lunch-money",
-  "main": "./dist/main.js",
+  "description": "A wrapper around Ethereum APIs for enabling Lunch Money to gather information about a user's wallet.",
+  "repository": "github:lunch-money/binance-to-lunch-money",
+  "main": "dist/cjs/main.js",
+  "module": "dist/mjs/main.js",
   "exports": {
-    ".": "./dist/main.js"
+    ".": {
+      "import": "./dist/mjs/main.js",
+      "require": "./dist/cjs/main.js"
+    }
   },
   "typesVersions": {
     "*": {
       "main.d.ts": [
-        "dist/main.d.ts"
+        "dist/mjs/main.d.ts"
       ]
     }
   },
+  "files": [
+    "dist/**/*"
+  ],
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "lint": "eslint '*/**/*.{js,ts,tsx}' --fix",
+    "clean": "rm -rf dist",
+    "build": "yarn clean && tsc -p tsconfig.build-mjs.json && tsc -p tsconfig.build-cjs.json && ./postbuild",
+    "lint": "eslint '{src,test}/**/*.{js,ts,tsx}' --fix",
     "test": "node --loader ts-node/esm node_modules/mocha/lib/cli/cli --recursive --extension ts",
-    "postinstall": "husky install"
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@types/chai": "^4",
