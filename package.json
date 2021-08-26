@@ -1,6 +1,5 @@
 {
   "name": "@lunch-money/ethereum-to-lunch-money",
-  "private": true,
   "packageManager": "yarn@3.0.1",
   "author": {
     "name": "Max Dumas",
