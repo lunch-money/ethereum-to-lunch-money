@@ -7,7 +7,7 @@
   },
   "bugs": "https://github.com/lunch-money/ethereum-to-lunch-money/issues",
   "homepage": "https://github.com/lunch-money/ethereum-to-lunch-money#README",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "MIT",
   "keywords": [
     "lunch money",
@@ -16,18 +16,18 @@
   ],
   "description": "A wrapper around Ethereum APIs for enabling Lunch Money to gather information about a user's wallet.",
   "repository": "github:lunch-money/ethereum-to-lunch-money",
-  "main": "dist/cjs/main.js",
-  "module": "dist/mjs/main.js",
+  "main": "dist/cjs/src/main.js",
+  "module": "dist/mjs/src/main.js",
   "exports": {
     ".": {
-      "import": "./dist/mjs/main.js",
-      "require": "./dist/cjs/main.js"
+      "import": "./dist/mjs/src/main.js",
+      "require": "./dist/cjs/src/main.js"
     }
   },
   "typesVersions": {
     "*": {
       "main.d.ts": [
-        "dist/mjs/main.d.ts"
+        "dist/mjs/src/main.d.ts"
       ]
     }
   },
