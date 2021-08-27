@@ -15,7 +15,7 @@
     "budgeting"
   ],
   "description": "A wrapper around Ethereum APIs for enabling Lunch Money to gather information about a user's wallet.",
-  "repository": "github:lunch-money/binance-to-lunch-money",
+  "repository": "github:lunch-money/ethereum-to-lunch-money",
   "main": "dist/cjs/main.js",
   "module": "dist/mjs/main.js",
   "exports": {
