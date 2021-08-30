@@ -5,7 +5,7 @@ import {
 } from './types.js';
 
 import { loadTokenList, EthereumWalletClient } from './client.js';
-import ethers from 'ethers';
+import * as ethers from 'ethers';
 
 export { LunchMoneyCryptoConnection } from './types.js';
 export { createEthereumWalletClient, EthereumWalletClient } from './client.js';

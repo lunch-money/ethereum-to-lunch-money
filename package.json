@@ -7,7 +7,7 @@
   },
   "bugs": "https://github.com/lunch-money/ethereum-to-lunch-money/issues",
   "homepage": "https://github.com/lunch-money/ethereum-to-lunch-money#README",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "license": "MIT",
   "keywords": [
     "lunch money",
@@ -71,7 +71,7 @@
   },
   "dependencies": {
     "@mycrypto/eth-scan": "^3.4.4",
-    "ethers": "^5.4.5",
-    "mem": "^9.0.1"
+    "ethers": "^5.4.6",
+    "mem": "^8.1.1"
   }
 }

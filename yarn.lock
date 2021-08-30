@@ -74,7 +74,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethersproject/abi@npm:5.4.0, @ethersproject/abi@npm:^5.4.0":
+"@ethersproject/abi@npm:5.4.1":
+  version: 5.4.1
+  resolution: "@ethersproject/abi@npm:5.4.1"
+  dependencies:
+    "@ethersproject/address": ^5.4.0
+    "@ethersproject/bignumber": ^5.4.0
+    "@ethersproject/bytes": ^5.4.0
+    "@ethersproject/constants": ^5.4.0
+    "@ethersproject/hash": ^5.4.0
+    "@ethersproject/keccak256": ^5.4.0
+    "@ethersproject/logger": ^5.4.0
+    "@ethersproject/properties": ^5.4.0
+    "@ethersproject/strings": ^5.4.0
+  checksum: 75460eee1d4eeaa438a43a003343dfcd2a8c3b1b7e0d8a3dd31c9200375d52daeea7022622696d1fec54913ec3b72423057236677907793ec134d2601a061fec
+  languageName: node
+  linkType: hard
+
+"@ethersproject/abi@npm:^5.4.0":
   version: 5.4.0
   resolution: "@ethersproject/abi@npm:5.4.0"
   dependencies:
@@ -265,7 +282,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethersproject/logger@npm:5.4.0, @ethersproject/logger@npm:^5.4.0":
+"@ethersproject/logger@npm:5.4.1":
+  version: 5.4.1
+  resolution: "@ethersproject/logger@npm:5.4.1"
+  checksum: 40ade2d1d9408cf786239d850aa6c1bd41403d68f8ab8974643836406efdae1a9419f25a184037ed7c2ee9dcb09896a09d078eed6dd424351f025b1e2eaf19e3
+  languageName: node
+  linkType: hard
+
+"@ethersproject/logger@npm:^5.4.0":
   version: 5.4.0
   resolution: "@ethersproject/logger@npm:5.4.0"
   checksum: dae12037fe91668b14e2e55fe6e6404d57f8e6a632788610bf8dab8553efad2343d10c61d556c5697ca6646ad628e4802e48d92da4f4011d97ff2d1875bb4de5
@@ -291,7 +315,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethersproject/properties@npm:5.4.0, @ethersproject/properties@npm:^5.4.0":
+"@ethersproject/properties@npm:5.4.1":
+  version: 5.4.1
+  resolution: "@ethersproject/properties@npm:5.4.1"
+  dependencies:
+    "@ethersproject/logger": ^5.4.0
+  checksum: 9c1fc83e26e0b2d7c26c1fb49e14cf5a08598bc06e9b1b5b2f67c9368febb6a35066e445debfc4f600e2a6516fc01baf42d65c23f79b32e634afd6a5b5dd9faf
+  languageName: node
+  linkType: hard
+
+"@ethersproject/properties@npm:^5.4.0":
   version: 5.4.0
   resolution: "@ethersproject/properties@npm:5.4.0"
   dependencies:
@@ -300,9 +333,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethersproject/providers@npm:5.4.4":
-  version: 5.4.4
-  resolution: "@ethersproject/providers@npm:5.4.4"
+"@ethersproject/providers@npm:5.4.5":
+  version: 5.4.5
+  resolution: "@ethersproject/providers@npm:5.4.5"
   dependencies:
     "@ethersproject/abstract-provider": ^5.4.0
     "@ethersproject/abstract-signer": ^5.4.0
@@ -323,7 +356,7 @@ __metadata:
     "@ethersproject/web": ^5.4.0
     bech32: 1.1.4
     ws: 7.4.6
-  checksum: c0bc3c36aa17ed6c2309b8bccc99ef53f7a21e0d601dc4adbff1c979dc9d7782c5411e95d1c8bdcbf90a2bad6f20b6012757b7270fba2177588a23067322669c
+  checksum: 09692fb053453c2a7e5d566e42d4542cd4225ea829d9177b6227c09559b11c041b4be5958d550ece3fb1d4677e67e45a4604604fd9f5d1b8dcbd04b8c259c186
   languageName: node
   linkType: hard
 
@@ -513,10 +546,10 @@ __metadata:
     eslint: ^7.32.0
     eslint-config-prettier: ^8.3.0
     eslint-plugin-prettier: ^3.4.0
-    ethers: ^5.4.5
+    ethers: ^5.4.6
     husky: ^7.0.0
     lint-staged: ^11.1.2
-    mem: ^9.0.1
+    mem: ^8.1.1
     mocha: ^9.0.3
     prettier: ^2.3.2
     sinon: ^11.1.2
@@ -1688,11 +1721,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethers@npm:^5.4.5":
-  version: 5.4.5
-  resolution: "ethers@npm:5.4.5"
+"ethers@npm:^5.4.6":
+  version: 5.4.6
+  resolution: "ethers@npm:5.4.6"
   dependencies:
-    "@ethersproject/abi": 5.4.0
+    "@ethersproject/abi": 5.4.1
     "@ethersproject/abstract-provider": 5.4.1
     "@ethersproject/abstract-signer": 5.4.1
     "@ethersproject/address": 5.4.0
@@ -1706,11 +1739,11 @@ __metadata:
     "@ethersproject/hdnode": 5.4.0
     "@ethersproject/json-wallets": 5.4.0
     "@ethersproject/keccak256": 5.4.0
-    "@ethersproject/logger": 5.4.0
+    "@ethersproject/logger": 5.4.1
     "@ethersproject/networks": 5.4.2
     "@ethersproject/pbkdf2": 5.4.0
-    "@ethersproject/properties": 5.4.0
-    "@ethersproject/providers": 5.4.4
+    "@ethersproject/properties": 5.4.1
+    "@ethersproject/providers": 5.4.5
     "@ethersproject/random": 5.4.0
     "@ethersproject/rlp": 5.4.0
     "@ethersproject/sha2": 5.4.0
@@ -1722,7 +1755,7 @@ __metadata:
     "@ethersproject/wallet": 5.4.0
     "@ethersproject/web": 5.4.0
     "@ethersproject/wordlists": 5.4.0
-  checksum: 266c6d8d000de9fe9aecb60aeb9179b3290ecacb8f6af05f05023f87f49238d2ff7c6add16dbcaa05e02ba9d75d5da588fc48f9ff4b884d86a750214833820ff
+  checksum: 3750ca9532b1413ef2b1bd611f4a8c74aa6413cbe47dd443d52430e4457a1343ea84c334e99018f816ea19e2848bb885146421c86101fe4570292b43c7762081
   languageName: node
   linkType: hard
 
@@ -2546,13 +2579,13 @@ fsevents@~2.3.2:
   languageName: node
   linkType: hard
 
-"mem@npm:^9.0.1":
-  version: 9.0.1
-  resolution: "mem@npm:9.0.1"
+"mem@npm:^8.1.1":
+  version: 8.1.1
+  resolution: "mem@npm:8.1.1"
   dependencies:
     map-age-cleaner: ^0.1.3
-    mimic-fn: ^4.0.0
-  checksum: 90ca89181170fda87f98e57a6d14b75dc66d1cee35fbe5d2f3ca89aac9f15341442468b03749191c92c3c552e9889ff29ded9da3b27302e8250520b65cc58f43
+    mimic-fn: ^3.1.0
+  checksum: c41bc97f6f82b91899206058989e34bcb1543af40413c2ab59e5a8e97e4f8f2188d62e7bd95b2d575d5b0d823d5034a0f274a0676f6d11a0e0b973898b06c8b1
   languageName: node
   linkType: hard
 
@@ -2587,10 +2620,10 @@ fsevents@~2.3.2:
   languageName: node
   linkType: hard
 
-"mimic-fn@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "mimic-fn@npm:4.0.0"
-  checksum: 995dcece15ee29aa16e188de6633d43a3db4611bcf93620e7e62109ec41c79c0f34277165b8ce5e361205049766e371851264c21ac64ca35499acb5421c2ba56
+"mimic-fn@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "mimic-fn@npm:3.1.0"
+  checksum: f7b167f9115b8bbdf2c3ee55dce9149d14be9e54b237259c4bc1d8d0512ea60f25a1b323f814eb1fe8f5a541662804bcfcfff3202ca58df143edb986849d58db
   languageName: node
   linkType: hard
 

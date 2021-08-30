@@ -1,5 +1,5 @@
-import ethscan from '@mycrypto/eth-scan';
-import ethers from 'ethers';
+import * as ethscan from '@mycrypto/eth-scan';
+import * as ethers from 'ethers';
 import mem from 'mem';
 
 import tokenList1inch from '../fixtures/1inch.json';
