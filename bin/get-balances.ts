@@ -1,10 +1,13 @@
 #!/usr/bin/env node --experimental-json-modules --loader ts-node/esm
 
 import assert from 'node:assert';
+import { encode } from 'querystring';
+import EventSource from 'eventsource';
 
-import ethers from 'ethers';
+import { CryptoBalance } from '../src/types.js';
 
-import { LunchMoneyEthereumWalletConnection, createEthereumWalletClient } from '../src/main.js';
+const ZAPPER_FI_API_URL = 'https://api.zapper.fi/v1/balances';
+const ZAPPER_FI_API_KEY = '96e0cc51-a62e-42ca-acee-910ea7d2a241';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -12,31 +15,42 @@ const requireEnv = (key: string): string => {
   return value;
 };
 
-const apiKey = requireEnv('LM_ETHERSCAN_API_KEY');
-const walletAddress = requireEnv('LM_ETHEREUM_WALLET_ADDRESS');
+const ETH_ADDRESS = requireEnv('ETH_ADDRESS');
+const ETH_ADDRESS_INDEX = ETH_ADDRESS.toLowerCase();
 
-const provider = ethers.providers.getDefaultProvider('homestead', {
-  etherscan: apiKey,
-  // TODO: Get these other keys for redundancy and performance
-  // infura: YOUR_INFURA_PROJECT_ID,
-  // Or if using a project secret:
-  // infura: {
-  //   projectId: YOUR_INFURA_PROJECT_ID,
-  //   projectSecret: YOUR_INFURA_PROJECT_SECRET,
-  // },
-  // alchemy: YOUR_ALCHEMY_API_KEY,
-  // pocket: YOUR_POCKET_APPLICATION_KEY
-  // Or if using an application secret key:
-  // pocket: {
-  //   applicationId: ,
-  //   applicationSecretKey:
-  // }
+const qs = encode({
+  'addresses[]': ETH_ADDRESS,
+  api_key: ZAPPER_FI_API_KEY,
 });
 
-const client = createEthereumWalletClient(provider);
+const url = ZAPPER_FI_API_URL + '?' + qs;
 
-const resp = await LunchMoneyEthereumWalletConnection.getBalances({ walletAddress }, { client });
+console.log(url);
 
-for (const { asset, amount } of resp.balances) {
-  console.log(`${asset}: ${amount}`);
-}
+const es = new EventSource(url);
+
+const hasAnyNonZeroBalances = (balanceData: any) => balanceData.balances[ETH_ADDRESS_INDEX].products.length > 0;
+
+es.addEventListener('balance', (ev) => {
+  const data = JSON.parse(ev.data);
+  if (hasAnyNonZeroBalances(data)) {
+    const p = data.balances[ETH_ADDRESS_INDEX].products;
+
+    const balances: CryptoBalance[] = p.flatMap((p: any) =>
+      p.assets.flatMap((a: any) =>
+        a.tokens.map((t: any) => ({
+          asset: t.symbol,
+          amount: t.balance,
+          amounInUSD: t.balanceUSD,
+        })),
+      ),
+    );
+
+    console.log(balances);
+  }
+});
+
+es.addEventListener('end', () => {
+  console.log('Finished stream. Closing connection.');
+  es.close();
+});

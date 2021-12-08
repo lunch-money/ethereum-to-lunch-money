@@ -17,6 +17,7 @@ export type LunchMoneyCryptoConnectionContext = {};
 export interface CryptoBalance {
   asset: string;
   amount: string;
+  amountInUSD: string;
 }
 
 export const providerNames = ['coinbase', 'coinbase_pro', 'kraken', 'binance', 'wallet_ethereum'] as const;

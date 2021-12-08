@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@types/chai": "^4",
+    "@types/eventsource": "^1.1.7",
     "@types/mocha": "^9.0.0",
     "@types/node": "^16.6.1",
     "@types/sinon": "^10.0.2",
@@ -72,6 +73,7 @@
   "dependencies": {
     "@mycrypto/eth-scan": "^3.4.4",
     "ethers": "^5.4.6",
+    "eventsource": "^1.1.0",
     "mem": "^8.1.1"
   }
 }
