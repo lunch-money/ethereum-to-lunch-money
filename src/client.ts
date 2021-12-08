@@ -41,7 +41,7 @@ export const createZapperAPIClient = (): ZapperAPIClient => ({
   },
 });
 
-interface ZapperTokenBalancesResponse {
+export interface ZapperTokenBalancesResponse {
   network: string;
   appId: string;
   balances: Record<string, ZapperBalance>;
@@ -49,7 +49,7 @@ interface ZapperTokenBalancesResponse {
 
 interface ZapperBalance {
   products: ZapperProduct[];
-  meta: ZapperMeta;
+  meta: ZapperMeta[];
 }
 
 interface ZapperMeta {
