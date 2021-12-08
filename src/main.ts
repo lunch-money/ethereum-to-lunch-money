@@ -20,7 +20,7 @@ interface LunchMoneyEthereumWalletConnectionConfig extends LunchMoneyCryptoConne
 }
 
 interface LunchMoneyEthereumWalletConnectionContext extends LunchMoneyCryptoConnectionContext {
-  client: ZapperAPIClient;
+  client?: ZapperAPIClient;
 }
 
 export const LunchMoneyEthereumWalletConnection: LunchMoneyCryptoConnection<

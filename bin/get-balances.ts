@@ -18,7 +18,7 @@ const ETH_ADDRESS = requireEnv('ETH_ADDRESS');
       {
         walletAddress: ETH_ADDRESS,
       },
-      { client: createZapperAPIClient() },
+      {},
     ),
   );
 })();
