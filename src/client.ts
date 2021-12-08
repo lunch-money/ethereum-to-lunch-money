@@ -1,49 +1,83 @@
-import ethscan from '@mycrypto/eth-scan';
-import * as ethers from 'ethers';
 import EventSource from 'eventsource';
-import mem from 'mem';
 import { encode } from 'querystring';
 
-// import eventsource from "eventsource";
-
-import tokenList1inch from '../fixtures/1inch.json';
-
-console.log(ethscan);
-
 const ZAPPER_FI_API_URL = 'https://api.zapper.fi/v1/balances';
+// This API key is public and shared with all users. This API is publicly
+// available, free of charge. See here for details:
+// https://docs.zapper.fi/zapper-api/endpoints
 const ZAPPER_FI_API_KEY = '96e0cc51-a62e-42ca-acee-910ea7d2a241';
-const ETH_ADDRESS = '0x8E29007951cE79c151dd070b51e30168E9663c13';
 
-export interface EthereumWalletClient {
-  getWeiBalance(walletAddress: string): Promise<bigint>;
-  getTokensBalance(walletAddress: string, tokenContractAddresses: string[]): Promise<ethscan.BalanceMap<bigint>>;
+export interface ZapperAPIClient {
+  getTokenBalances(walletAddresses: string[]): Promise<ZapperTokenBalancesResponse[]>;
 }
 
-export const createEthereumWalletClient = (provider: ethers.providers.BaseProvider): EthereumWalletClient => ({
-  async getWeiBalance(walletAddress) {
-    return (await provider.getBalance(walletAddress)).toBigInt();
-  },
-  async getTokensBalance(walletAddress, tokenContractAddresses) {
-    const es = new EventSource(
-      ZAPPER_FI_API_URL +
-        '?' +
-        encode({
-          'addresses[]': ETH_ADDRESS,
-          api_key: ZAPPER_FI_API_KEY,
-        }),
-    );
+export const createZapperAPIClient = (): ZapperAPIClient => ({
+  async getTokenBalances(walletAddresses) {
+    const qs = encode({
+      'addresses[]': walletAddresses.join(','),
+      api_key: ZAPPER_FI_API_KEY,
+    });
+
+    const es = new EventSource(ZAPPER_FI_API_URL + '?' + qs);
+
+    let balances: ZapperTokenBalancesResponse[] = [];
+
+    es.addEventListener('balance', (ev) => {
+      const data: ZapperTokenBalancesResponse = JSON.parse(ev.data);
+      balances = balances.concat(data);
+    });
+
+    return new Promise((resolve, reject) => {
+      es.addEventListener('end', () => {
+        es.close();
+        resolve(balances);
+      });
+
+      es.addEventListener('error', (ev) => {
+        es.close();
+        reject(ev);
+      });
+    });
   },
 });
 
-interface Token {
+interface ZapperTokenBalancesResponse {
+  network: string;
+  appId: string;
+  balances: Record<string, ZapperBalance>;
+}
+
+interface ZapperBalance {
+  products: ZapperProduct[];
+  meta: ZapperMeta;
+}
+
+interface ZapperMeta {
+  label: string;
+  value: number;
+  type: string;
+}
+
+interface ZapperProduct {
+  label: string;
+  assets: ZapperAsset[];
+}
+
+interface ZapperAsset {
+  type: string;
+  balanceUSD: number;
+  tokens: ZapperToken[];
+}
+
+interface ZapperToken {
+  type: string;
+  network: string;
   address: string;
-  chainId: number;
-  name: string;
-  symbol: string;
   decimals: number;
-  logoURI: string;
+  symbol: string;
+  price: number;
+  hide: boolean;
+  balance: number;
+  balanceRaw: string;
+  balanceUSD: number;
 }
-
-export const loadTokenList = mem(async (): Promise<Token[]> => {
-  return tokenList1inch.tokens;
-});

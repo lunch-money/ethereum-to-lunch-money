@@ -2,7 +2,7 @@
 
 import assert from 'node:assert';
 
-import { LunchMoneyEthereumWalletConnection } from '../src/main.js';
+import { LunchMoneyEthereumWalletConnection, createZapperAPIClient } from '../src/main.js';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -18,7 +18,7 @@ const ETH_ADDRESS = requireEnv('ETH_ADDRESS');
       {
         walletAddress: ETH_ADDRESS,
       },
-      {},
+      { client: createZapperAPIClient() },
     ),
   );
 })();
