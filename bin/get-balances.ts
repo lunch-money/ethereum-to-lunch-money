@@ -1,12 +1,15 @@
 #!/usr/bin/env node --experimental-json-modules --loader ts-node/esm
 
 import assert from 'node:assert';
-import { encode } from 'querystring';
+import { encode } from 'node:querystring';
 import EventSource from 'eventsource';
 
 import { CryptoBalance } from '../src/types.js';
 
 const ZAPPER_FI_API_URL = 'https://api.zapper.fi/v1/balances';
+// This API key is public and shared with all users. This API is publicly
+// available, free of charge. See here for details:
+// https://docs.zapper.fi/zapper-api/endpoints
 const ZAPPER_FI_API_KEY = '96e0cc51-a62e-42ca-acee-910ea7d2a241';
 
 const requireEnv = (key: string): string => {
@@ -25,11 +28,11 @@ const qs = encode({
 
 const url = ZAPPER_FI_API_URL + '?' + qs;
 
-console.log(url);
-
 const es = new EventSource(url);
 
 const hasAnyNonZeroBalances = (balanceData: any) => balanceData.balances[ETH_ADDRESS_INDEX].products.length > 0;
+
+let allBalances: CryptoBalance[] = [];
 
 es.addEventListener('balance', (ev) => {
   const data = JSON.parse(ev.data);
@@ -40,17 +43,18 @@ es.addEventListener('balance', (ev) => {
       p.assets.flatMap((a: any) =>
         a.tokens.map((t: any) => ({
           asset: t.symbol,
-          amount: t.balance,
-          amounInUSD: t.balanceUSD,
+          amount: t.balance.toString(),
+          amountInUSD: t.balanceUSD.toString(),
         })),
       ),
     );
 
-    console.log(balances);
+    allBalances = allBalances.concat(balances);
   }
 });
 
 es.addEventListener('end', () => {
   console.log('Finished stream. Closing connection.');
+  console.log(allBalances.sort((a, b) => parseFloat(a.amountInUSD) - parseFloat(b.amountInUSD)));
   es.close();
 });
