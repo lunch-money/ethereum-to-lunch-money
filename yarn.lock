@@ -340,6 +340,7 @@ __metadata:
     mocha: "npm:^11.1.0"
     prettier: "npm:^3.4.2"
     sinon: "npm:^19.0.2"
+    tsc: "npm:^2.0.4"
     tsx: "npm:^4.19.2"
     typescript: "npm:^4.9.5"
   languageName: unknown
@@ -3317,6 +3318,15 @@ __metadata:
   peerDependencies:
     typescript: ">=4.8.4"
   checksum: 10c0/6165e29a5b75bd0218e3cb0f9ee31aa893dbd819c2e46dbb086c841121eb0436ed47c2c18a20cb3463d74fd1fb5af62e2604ba5971cc48e5b38ebbdc56746dfc
+  languageName: node
+  linkType: hard
+
+"tsc@npm:^2.0.4":
+  version: 2.0.4
+  resolution: "tsc@npm:2.0.4"
+  bin:
+    tsc: bin/tsc
+  checksum: 10c0/4651d344891d995e62ab7ca64ce0a8597bbdc2d392886c9956d15caab4dc9bfe86e759d3385b3f97c49fb5294194a161d6812673e3f51e46357c82482f32c3ab
   languageName: node
   linkType: hard
 

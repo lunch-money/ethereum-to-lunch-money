@@ -37,7 +37,7 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "yarn clean && tsc -p tsconfig.build-mjs.json && tsc -p tsconfig.build-cjs.json && ./postbuild",
+    "build": "yarn clean && npx tsc -p tsconfig.build-mjs.json && npx tsc -p tsconfig.build-cjs.json && ./postbuild",
     "lint": "eslint '{src,test}/**/*.{js,ts,tsx}' --fix",
     "test": "tsx node_modules/mocha/lib/cli/cli --recursive --extension ts",
     "prepare": "husky install"
@@ -58,6 +58,7 @@
     "mocha": "^11.1.0",
     "prettier": "^3.4.2",
     "sinon": "^19.0.2",
+    "tsc": "^2.0.4",
     "tsx": "^4.19.2",
     "typescript": "^4.9.5"
   },
