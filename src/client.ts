@@ -40,7 +40,7 @@ interface Token {
   name: string;
   symbol: string;
   decimals: number;
-  logoURI: string;
+  logoURI: string | null;
 }
 
 export const loadTokenList = mem(async (): Promise<Token[]> => {
