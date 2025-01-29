@@ -2,9 +2,8 @@
 
 import assert from 'node:assert';
 
-import ethers from 'ethers';
-
 import { LunchMoneyEthereumWalletConnection, createEthereumWalletClient } from '../src/main.js';
+import { ethers } from 'ethers';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -15,8 +14,9 @@ const requireEnv = (key: string): string => {
 const apiKey = requireEnv('LM_ETHERSCAN_API_KEY');
 const walletAddress = requireEnv('LM_ETHEREUM_WALLET_ADDRESS');
 
-const provider = ethers.providers.getDefaultProvider('homestead', {
+const provider = ethers.getDefaultProvider('mainnet', {
   etherscan: apiKey,
+  exclusive: [ "etherscan" ]
   // TODO: Get these other keys for redundancy and performance
   // infura: YOUR_INFURA_PROJECT_ID,
   // Or if using a project secret:
@@ -40,3 +40,5 @@ const resp = await LunchMoneyEthereumWalletConnection.getBalances({ walletAddres
 for (const { asset, amount } of resp.balances) {
   console.log(`${asset}: ${amount}`);
 }
+
+process.exit(0);

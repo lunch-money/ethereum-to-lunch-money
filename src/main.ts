@@ -1,4 +1,4 @@
-import {
+import type {
   LunchMoneyCryptoConnection,
   LunchMoneyCryptoConnectionContext,
   LunchMoneyCryptoConnectionConfig,
@@ -7,8 +7,7 @@ import {
 import { loadTokenList, EthereumWalletClient } from './client.js';
 import * as ethers from 'ethers';
 
-export { LunchMoneyCryptoConnection } from './types.js';
-export { createEthereumWalletClient, EthereumWalletClient } from './client.js';
+export { createEthereumWalletClient } from './client.js';
 
 /** The minimum balance (in wei) that a token should have in order to be
  * considered for returning as a balance. */
