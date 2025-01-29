@@ -64,17 +64,17 @@ describe('LunchMoneyEthereumWalletConnection', () => {
       it('outputs the tokens which have balances above the negligible balance threshold', async () => {
         mockClient.getWeiBalance.resolves(50);
         mockClient.getTokensBalance.resolves({
-          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': 1000, // USDC
-          '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2': 10, // MKR
-          '0xa1d65E8fB6e87b60FECCBc582F7f97804B725521': 10000, // DXD
+          '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': 100, // USDC which has 6 decimals
+          '0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2': 100, // MKR which has 18 decimals
+          '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': 100, // WBTC which has 8 decimals
         });
 
         const response = await underTest.getBalances(dummyConfig, dummyContext);
 
         assert.strictEqual(response.providerName, 'wallet_ethereum');
         assert.sameDeepMembers(response.balances, [
-          { asset: 'USDC', amount: '0.000000000000001' },
-          { asset: 'DXD', amount: '0.00000000000001' },
+          { asset: 'USDC', amount: '0.0001' },
+          { asset: 'WBTC', amount: '0.000001' },
         ]);
       });
     });
