@@ -1,4 +1,4 @@
-#!/usr/bin/env node --experimental-json-modules --loader ts-node/esm
+#!/usr/bin/env tsx
 
 import assert from 'node:assert';
 
