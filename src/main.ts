@@ -34,26 +34,29 @@ export const LunchMoneyEthereumWalletConnection: LunchMoneyCryptoConnection<
     const weiBalance = await client.getWeiBalance(walletAddress);
 
     // Filter out tokens that are not on mainnet
-    const mainetTokensList = (await loadTokenList()).filter((t) => t.chainId === 1);
+    const chainId = await client.getChainId();
+    const chainFilteredTokensList = (await loadTokenList()).filter((t) => BigInt(t.chainId) === BigInt(chainId));
 
     const map = await client.getTokensBalance(
       walletAddress,
-      mainetTokensList.map((t) => t.address),
+      chainFilteredTokensList.map((t) => t.address),
     );
 
-    const balances = Object.entries(map).map(([address, balance]) => {
-      const token = mainetTokensList.find((t) => t.address === address);
+    const balances = Object.entries(map)
+      .map(([address, balance]) => {
+        const token = chainFilteredTokensList.find((t) => t.address === address);
 
-      if (!token) {
-        throw new Error(`Token ${address} not found in mainet token list`);
-      }
+        if (!token) {
+          throw new Error(`Token ${address} not found in filtered token list for chainId ${chainId}`);
+        }
 
-      return {
-        asset: token.symbol,
-        undivisedAmount: balance,
-        decimals: token.decimals,
-      }
-    }).concat({ asset: 'ETH', undivisedAmount: weiBalance, decimals: 18 })
+        return {
+          asset: token.symbol,
+          undivisedAmount: balance,
+          decimals: token.decimals,
+        };
+      })
+      .concat({ asset: 'ETH', undivisedAmount: weiBalance, decimals: 18 })
       .map(({ asset, undivisedAmount, decimals }) => ({ asset, amount: ethers.formatUnits(undivisedAmount, decimals) }))
       // Normalize the amount to 18 decimal places (for the wei per eth standard) for filtering out negligible balances
       .filter((b) => ethers.parseUnits(b.amount, 18) > negligibleBalanceThreshold)

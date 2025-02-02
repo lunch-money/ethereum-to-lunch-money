@@ -6,6 +6,7 @@ import tokenList1inch from '../fixtures/1inch.json';
 import { EthersProviderLike } from '@mycrypto/eth-scan/typings/src/providers/ethers.js';
 
 export interface EthereumWalletClient {
+  getChainId(): Promise<bigint>;
   getWeiBalance(walletAddress: string): Promise<bigint>;
   getTokensBalance(walletAddress: string, tokenContractAddresses: string[]): Promise<ethscan.BalanceMap<bigint>>;
 }
@@ -25,6 +26,9 @@ export const createEthereumWalletClient = (provider: ethers.AbstractProvider): E
   }
 
   return {
+    async getChainId() {
+      return (await provider.getNetwork()).chainId;
+    },
     async getWeiBalance(walletAddress) {
       return (await provider.getBalance(walletAddress));
     },
