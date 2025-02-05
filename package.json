@@ -34,7 +34,7 @@
   "files": [
     "dist/**/*"
   ],
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "clean": "rm -rf dist",
     "build": "yarn clean && npx tsc -p tsconfig.build-mjs.json && npx tsc -p tsconfig.build-cjs.json && ./postbuild",

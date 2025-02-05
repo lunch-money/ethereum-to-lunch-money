@@ -24,7 +24,7 @@ describe('LunchMoneyEthereumWalletConnection', () => {
   };
 
   describe('getBalances', () => {
-    describe('when the wallet has an ETH amount less than the neglible balance threshold', () => {
+    describe('when the wallet has an ETH amount less than the negligible balance threshold', () => {
       it('does not output the ETH balance amount', async () => {
         mockClient.getChainId.resolves(chainIds.mainnet);
         mockClient.getWeiBalance.resolves(50);
@@ -39,7 +39,7 @@ describe('LunchMoneyEthereumWalletConnection', () => {
       });
     });
 
-    describe('when the wallet has an ETH amount more than the neglible balance threshold', () => {
+    describe('when the wallet has an ETH amount more than the negligible balance threshold', () => {
       it('outputs the ETH balance amount', async () => {
         mockClient.getChainId.resolves(chainIds.mainnet);
         mockClient.getWeiBalance.resolves(1000);

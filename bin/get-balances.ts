@@ -3,8 +3,8 @@
 import assert from 'node:assert';
 
 import { LunchMoneyEthereumWalletConnection, createEthereumWalletClient } from '../src/main.js';
-import { ethers } from 'ethers';
-import { Networkish } from 'ethers';
+import * as ethers from 'ethers';
+import type { Networkish } from 'ethers';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -43,10 +43,17 @@ const provider = ethers.getDefaultProvider(BigInt(chainId), {
 
 const client = createEthereumWalletClient(provider);
 
-const resp = await LunchMoneyEthereumWalletConnection.getBalances({ walletAddress }, { client });
+(async () => {
+  try {
+    const resp = await LunchMoneyEthereumWalletConnection.getBalances({ walletAddress }, { client });
 
-for (const { asset, amount } of resp.balances) {
-  console.log(`${asset}: ${amount}`);
-}
+    for (const { asset, amount } of resp.balances) {
+      console.log(`${asset}: ${amount}`);
+    }
 
-process.exit(0);
+    process.exit(0);
+  } catch (error) {
+    console.error('Error fetching balances:', error);
+    process.exit(1);
+  }
+})();
