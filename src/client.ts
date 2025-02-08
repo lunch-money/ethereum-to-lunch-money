@@ -1,6 +1,5 @@
 import * as ethscan from '@mycrypto/eth-scan';
 import * as ethers from 'ethers';
-import mem from 'mem';
 
 import tokenList1inch from '../fixtures/1inch.json';
 import { EthersProviderLike } from '@mycrypto/eth-scan/typings/src/providers/ethers.js';
@@ -47,6 +46,6 @@ interface Token {
   logoURI: string | null;
 }
 
-export const loadTokenList = mem(async (): Promise<Token[]> => {
+export const loadTokenList = async (): Promise<Token[]> => {
   return tokenList1inch.tokens;
-});
+};

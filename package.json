@@ -72,7 +72,6 @@
   },
   "dependencies": {
     "@mycrypto/eth-scan": "^3.5.3",
-    "ethers": "^6.13.5",
-    "mem": "^10.0.0"
+    "ethers": "^6.13.5"
   }
 }
