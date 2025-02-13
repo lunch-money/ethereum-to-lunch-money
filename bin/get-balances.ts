@@ -1,10 +1,10 @@
-#!/usr/bin/env node --experimental-json-modules --loader ts-node/esm
+#!/usr/bin/env npx tsx
 
 import assert from 'node:assert';
 
-import ethers from 'ethers';
-
 import { LunchMoneyEthereumWalletConnection, createEthereumWalletClient } from '../src/main.js';
+import * as ethers from 'ethers';
+import type { Networkish } from 'ethers';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -12,11 +12,19 @@ const requireEnv = (key: string): string => {
   return value;
 };
 
+const optionalEnv = (key: string, defaultValue: string): string => {
+  const value = process.env[key];
+
+  return value ?? defaultValue;
+};
+
 const apiKey = requireEnv('LM_ETHERSCAN_API_KEY');
 const walletAddress = requireEnv('LM_ETHEREUM_WALLET_ADDRESS');
+const chainId: Networkish = optionalEnv('LM_ETHEREUM_CHAIN_ID', '1'); // Defaults to mainnet
 
-const provider = ethers.providers.getDefaultProvider('homestead', {
+const provider = ethers.getDefaultProvider(BigInt(chainId), {
   etherscan: apiKey,
+  exclusive: ['etherscan'],
   // TODO: Get these other keys for redundancy and performance
   // infura: YOUR_INFURA_PROJECT_ID,
   // Or if using a project secret:
@@ -35,8 +43,17 @@ const provider = ethers.providers.getDefaultProvider('homestead', {
 
 const client = createEthereumWalletClient(provider);
 
-const resp = await LunchMoneyEthereumWalletConnection.getBalances({ walletAddress }, { client });
+(async () => {
+  try {
+    const resp = await LunchMoneyEthereumWalletConnection.getBalances({ walletAddress }, { client });
 
-for (const { asset, amount } of resp.balances) {
-  console.log(`${asset}: ${amount}`);
-}
+    for (const { asset, amount } of resp.balances) {
+      console.log(`${asset}: ${amount}`);
+    }
+
+    process.exit(0);
+  } catch (error) {
+    console.error('Error fetching balances:', error);
+    process.exit(1);
+  }
+})();

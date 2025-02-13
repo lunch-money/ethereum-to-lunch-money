@@ -1,5 +1,10 @@
 {
   "extends": "./tsconfig.json",
-  "rootDir": "src",
-  "exclude": ["test"]
+  "exclude": ["test"],
+  "compilerOptions": {
+    "rootDirs": [
+      "src",
+      "fixtures"
+    ]
+  }
 }
