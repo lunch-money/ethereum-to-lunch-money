@@ -11,25 +11,23 @@ export interface EthereumWalletClient {
 }
 
 export const createEthereumWalletClient = (provider: ethers.AbstractProvider): EthereumWalletClient => {
-
   // A custom ethscan provider implementation is needed to map `call` to `send` for ethscan to use the ethers client correctly.
   // This is a temporary solution until the ethscan library is updated to support ethers v6.
-  const customProvider: EthersProviderLike  = {
+  const customProvider: EthersProviderLike = {
     send<Result>(method: string, params: unknown[] | unknown): Promise<Result> {
-
       // Type pulled from: https://github.com/MyCryptoHQ/eth-scan/blob/master/src/providers/provider.ts#L32
-      const typedParams = params as [{to: string, data: string}, string];
+      const typedParams = params as [{ to: string; data: string }, string];
 
-      return provider.call({to: typedParams[0].to, data: typedParams[0].data}) as Promise<Result>
-    }
-  }
+      return provider.call({ to: typedParams[0].to, data: typedParams[0].data }) as Promise<Result>;
+    },
+  };
 
   return {
     async getChainId() {
       return (await provider.getNetwork()).chainId;
     },
     async getWeiBalance(walletAddress) {
-      return (await provider.getBalance(walletAddress));
+      return await provider.getBalance(walletAddress);
     },
     async getTokensBalance(walletAddress, tokenContractAddresses) {
       return ethscan.getTokensBalance(customProvider, walletAddress, tokenContractAddresses);

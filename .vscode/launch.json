@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "get-balances",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "runtimeExecutable": "npx",
+            "runtimeArgs": [
+                "ts-node",
+                "--project",
+                "tsconfig.build-cjs.json",
+                "bin/get-balances.ts"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ],
+            "env": {
+                "DEBUG_ETHEREUM": "true",
+                // Set the service node provider API keys here
+                // If none are set, the public API will be used which may be rate limited
+                // ALCHEMY_API_KEY: "1234567890",
+                // INFURA_API_KEY: "1234567890",
+
+                // These legacy service nodes are no longer recommended
+                // "ETHERSCAN_API_KEY": "1234567890",
+                // "POCKET_API_KEY": "1234567890",
+                // "INFURA_PROJECT_ID": "1234567890",
+                // "INFURA_PROJECT_SECRET": "1234567890",
+
+                // Set the wallet address to test here, otherwise a well known wallet address will be used for testing
+                //"LM_ETHEREUM_WALLET_ADDRESS": "0x1234567890"
+            },
+            "trace": true,
+            "sourceMaps": true
+        }
+    ]
+}
