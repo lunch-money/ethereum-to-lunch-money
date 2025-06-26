@@ -3,16 +3,14 @@
  */
 // TODO: Remove this if there isn't any shared config type between our
 // integrations that makes sense here.
-// eslint-disable-next-line @typescript-eslint/ban-types
-export type LunchMoneyCryptoConnectionConfig = {};
+export type LunchMoneyCryptoConnectionConfig = Record<string, unknown>;
 
 /**
  * Non-serializable injected dependencies for the connection
  */
 // TODO: Remove this if there isn't any shared context type between our
 // integrations that makes sense here.
-// eslint-disable-next-line @typescript-eslint/ban-types
-export type LunchMoneyCryptoConnectionContext = {};
+export type LunchMoneyCryptoConnectionContext = Record<string, unknown>;
 
 export interface CryptoBalance {
   asset: string;
@@ -20,7 +18,7 @@ export interface CryptoBalance {
 }
 
 export const providerNames = ['coinbase', 'coinbase_pro', 'kraken', 'binance', 'wallet_ethereum'] as const;
-export type ProviderName = typeof providerNames[number];
+export type ProviderName = (typeof providerNames)[number];
 export interface LunchMoneyCryptoConnectionBalances {
   providerName: ProviderName;
   balances: CryptoBalance[];

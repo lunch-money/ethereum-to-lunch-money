@@ -15,20 +15,44 @@ yarn
 yarn test
 ```
 
-There is also a script, `get-balances.ts`, that can be invoked to invoke the
-client against a real wallet. It is invoked in the following way:
+## Debugging
 
+The following environment variables can be run with the test script or when using the plugin with Lunch Money
+
+- DEBUG_ETHEREUM - set to enable detailed debug messages and enable API Key validation
+- ETHEREUM_BALANCE_TIMEOUT_MSECS - the number of msecs to wait for a response before timing out
+
+The timeout was added to avoid a false CORS message when the API never returns.
+
+Tweaking this to about 1000-2000, and watching the debug messages can be useful for validating that failover is working as expected.
+
+## Live Testing
+
+There is a script, `get-balances.ts`, that can be invoked to invoke the client against a real or test wallet.  This mimics the behavior of the Lunch Money server when a user attempts to connect an Ethereum wallet.
+
+Copy [env.example](./env.example) to .env and set some or all of the environment variables that the script and connector use.
+
+### Ethereum Service Provider API Keys
+
+If no keys are set, the script will use the public APIs which may or may not work. One or both of the following are recommended:
+
+- ALCHEMY_API_KEY - [set up a key here](https://dashboard.alchemy.com/). This is the recommended service to use
+- INFURA_API_KEY - [set up a key here](https://developer.metamask.io/). If set with Alchemy will be used as a secondary
+
+While the connector can run with other service node keys, such as Etherscan, the test script will not support it.
+
+###  Wallet Configuration
+- LM_ETHEREUM_WALLET_ADDRESS
+
+If no wallet is set, the test script will use a well know test wallet
+
+The Blockchain network is no longer configurable in the test script and defaults to "mainnet".
+
+To run the script
 ```
-export LM_ETHERSCAN_API_KEY="***********************"
-export LM_ETHEREUM_WALLET_ADDRESS="0xA9D1e08C7793af67e9d92fe308d5697FB81d3E43"
-
-# Optional, defaults to mainnet
-export LM_ETHEREUM_CHAIN_ID="1"
-
-./bin/get-balances.ts
+yarn test-live
 ```
-
-You can obtain a Etherscan API key by following the documentation [here](https://docs.etherscan.io/getting-started/viewing-api-usage-statistics).
+A .vscode/launch.json configuration is include to facilitate running the script in the debugger with VSCode.
 
 ## Refreshing the Token List
 
