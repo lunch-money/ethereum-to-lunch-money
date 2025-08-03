@@ -7,6 +7,7 @@ dotenv.config();
 
 import { LunchMoneyEthereumWalletConnection, createEthereumWalletClient } from '../dist/cjs/src/main.js';
 import * as ethers from 'ethers';
+import fetch from 'node-fetch';
 
 function getWalletAddress() {
   // Use WETH contract address for testing - it's a well-known contract
@@ -35,14 +36,14 @@ const INTEGRATIONS = {
 
 function getEthereumProvider() {
   // Create Ethereum Wallet Client.
-  // Setting a single private API key will generally speed up the requests
-  // Setting multiple private API keys will generally slow down request but provide a quorum of responses.
-  // See - https://docs.ethers.org/v5/api-keys/
+  // An ideal setup would be to use Alchemy as the primary provider and Infura as the secondary provider.
+  // It is also suggested to provision Moralis and Etherscan as the wallet token APIs. These are used
+  // to reduce the cost of balance requests made to Alchemy or Infura
 
   INTEGRATIONS.ethereum.primaryProvider = null;
   INTEGRATIONS.ethereum.secondaryProvider = null;
 
-  // Alchemy is the recommended service node.
+  // Alchemy a recommended service node.
   // It is has the most generous free tier and is quick and reliable
   if (process.env.ALCHEMY_API_KEY) {
     if (process.env.DEBUG_ETHEREUM) {
@@ -50,8 +51,7 @@ function getEthereumProvider() {
     }
     INTEGRATIONS.ethereum.primaryProvider = new ethers.AlchemyProvider(BLOCKCHAIN_NETWORK, process.env.ALCHEMY_API_KEY);
   }
-  // Infura was acquired by METAMASK who now provides an API key instead of a project ID and secret
-  // https://developer.metamask.io/
+  // Infura is recommended a a secondary service node.
   if (process.env.INFURA_API_KEY) {
     if (!INTEGRATIONS.ethereum.primaryProvider) {
       if (process.env.DEBUG_ETHEREUM) {
@@ -68,29 +68,12 @@ function getEthereumProvider() {
       );
     }
   }
-
-  // Warn if attempting to use legacy service nodes
-  if (process.env.ETHERSCAN_API_KEY) {
-    console.error('ETHERSCAN_API_KEY is no longer recommended as a service node. This key will be ignored.');
-  }
-  if (process.env.INFURA_PROJECT_ID && process.env.INFURA_PROJECT_SECRET) {
-    console.error(
-      'INFURA_PROJECT_ID and INFURA_PROJECT_SECRET are no longer recommended as a service node. These keys will be ignored.',
-    );
-  }
-  if (process.env.POCKET_API_KEY) {
-    console.error('POCKET_API_KEY is no longer recommended as a service node. It is not advised to set this variable.');
-  }
-
   if (!INTEGRATIONS.ethereum.primaryProvider) {
-    if (process.env.DEBUG_ETHEREUM) {
-      console.log('[DEBUG_ETHEREUM] No valid Ethereum providers found.  Using public network');
-    }
     INTEGRATIONS.ethereum.primaryProvider = ethers.getDefaultProvider(BLOCKCHAIN_NETWORK, {});
-  } else if (!INTEGRATIONS.ethereum.secondaryProvider) {
-    INTEGRATIONS.ethereum.secondaryProvider = ethers.getDefaultProvider(BLOCKCHAIN_NETWORK, {});
   }
-
+  if (!INTEGRATIONS.ethereum.primaryProvider) {
+    throw new Error('Unable to create any Ethereum providers');
+  }
   return INTEGRATIONS.ethereum.primaryProvider;
 }
 
@@ -140,183 +123,224 @@ async function testEthereumProviderKeys(walletAddress: string) {
     }
   };
 
-  // Test Alchemy API Key
-  if (process.env.ALCHEMY_API_KEY) {
-    try {
-      console.log('[DEBUG_ETHEREUM] Found an Alchemy API key.  Validating it');
-      console.log('[DEBUG_ETHEREUM] Alchemy key (masked):', maskKey(process.env.ALCHEMY_API_KEY));
-      console.log('[DEBUG_ETHEREUM] Alchemy key length:', process.env.ALCHEMY_API_KEY.length);
-
-      // Validate API key format
-      if (process.env.ALCHEMY_API_KEY.length < 20) {
-        throw new Error(
-          `API key seems too short (${process.env.ALCHEMY_API_KEY.length} chars). Alchemy keys are typically 32+ characters.`,
-        );
-      }
-
-      // Test provider creation first
-      let testProvider;
+  // Section 1: Test valid Ethereum service provider keys
+  if (process.env.ALCHEMY_API_KEY || process.env.INFURA_API_KEY) {
+    // Test Alchemy API Key
+    if (process.env.ALCHEMY_API_KEY) {
       try {
-        testProvider = new ethers.AlchemyProvider(BLOCKCHAIN_NETWORK, process.env.ALCHEMY_API_KEY);
-        console.log('[DEBUG_ETHEREUM] Alchemy provider created successfully');
-      } catch (providerError) {
-        const errorMessage = providerError instanceof Error ? providerError.message : String(providerError);
-        console.error('[DEBUG_ETHEREUM] Failed to create Alchemy provider:', errorMessage);
-        throw providerError;
+        console.log('[DEBUG_ETHEREUM] Found an Alchemy API key.  Validating it');
+        console.log('[DEBUG_ETHEREUM] Alchemy key (masked):', maskKey(process.env.ALCHEMY_API_KEY));
+        console.log('[DEBUG_ETHEREUM] Alchemy key length:', process.env.ALCHEMY_API_KEY.length);
+
+        // Test provider creation first
+        let testProvider;
+        try {
+          testProvider = new ethers.AlchemyProvider(BLOCKCHAIN_NETWORK, process.env.ALCHEMY_API_KEY);
+          console.log('[DEBUG_ETHEREUM] Alchemy provider created successfully');
+        } catch (providerError) {
+          const errorMessage = providerError instanceof Error ? providerError.message : String(providerError);
+          console.error('[DEBUG_ETHEREUM] Failed to create Alchemy provider:', errorMessage);
+          throw providerError;
+        }
+
+        // Test with getBalance which requires API key authentication
+        const balance = await testProvider.getBalance(walletAddress);
+        const network = await testProvider.getNetwork();
+
+        console.log(
+          '[DEBUG_ETHEREUM] Alchemy API key test: SUCCESS - Network:',
+          network.name,
+          'Balance:',
+          ethers.formatEther(balance),
+          'ETH',
+        );
+        results.push({
+          provider: 'Alchemy',
+          status: 'SUCCESS',
+          network: network.name,
+          balance: ethers.formatEther(balance),
+        });
+      } catch (error) {
+        const errorMessage = getCleanErrorMessage(error);
+        console.error('[DEBUG_ETHEREUM] Alchemy API key test: FAILED -', errorMessage);
+        if (errorMessage.includes('401')) {
+          console.error('[DEBUG_ETHEREUM] 401 error suggests invalid API key or authentication issue');
+        } else if (errorMessage.includes('rate limit')) {
+          console.error('[DEBUG_ETHEREUM] Rate limit error - check your API key tier');
+        }
+        results.push({
+          provider: 'Alchemy',
+          status: 'FAILED',
+          error: errorMessage,
+        });
       }
-
-      // Test with getBalance which requires API key authentication
-      const balance = await testProvider.getBalance(walletAddress);
-      const network = await testProvider.getNetwork();
-
-      // Also test with getCode to verify API key works
-      const code = await testProvider.getCode(walletAddress);
-
-      console.log(
-        '[DEBUG_ETHEREUM] Alchemy API key test: SUCCESS - Network:',
-        network.name,
-        'Balance:',
-        ethers.formatEther(balance),
-        'ETH',
-        'Code length:',
-        code.length,
-      );
-      results.push({
-        provider: 'Alchemy',
-        status: 'SUCCESS',
-        network: network.name,
-        balance: ethers.formatEther(balance),
-      });
-    } catch (error) {
-      const errorMessage = getCleanErrorMessage(error);
-      console.error('[DEBUG_ETHEREUM] Alchemy API key test: FAILED -', errorMessage);
-      if (errorMessage.includes('401')) {
-        console.error('[DEBUG_ETHEREUM] 401 error suggests invalid API key or authentication issue');
-      } else if (errorMessage.includes('rate limit')) {
-        console.error('[DEBUG_ETHEREUM] Rate limit error - check your API key tier');
-      } else if (errorMessage.includes('network')) {
-        console.error('[DEBUG_ETHEREUM] Network error - check your internet connection');
-      }
-      results.push({
-        provider: 'Alchemy',
-        status: 'FAILED',
-        error: errorMessage,
-      });
     }
-  }
 
-  // Test Infura API Key
-  if (process.env.INFURA_API_KEY) {
-    try {
-      console.log('[DEBUG_ETHEREUM] Found an Infura API Key.  Validating it');
-      console.log('[DEBUG_ETHEREUM] Infura API Key (masked):', maskKey(process.env.INFURA_API_KEY));
-      const testProvider = new ethers.InfuraProvider(BLOCKCHAIN_NETWORK, process.env.INFURA_API_KEY);
-      // Test with getBalance which requires API key authentication
-      const balance = await testProvider.getBalance(walletAddress);
-      const network = await testProvider.getNetwork();
-      console.log(
-        '[DEBUG_ETHEREUM] Infura API Key test: SUCCESS - Network:',
-        network.name,
-        'Balance:',
-        ethers.formatEther(balance),
-        'ETH',
-      );
-      results.push({
-        provider: 'Infura',
-        status: 'SUCCESS',
-        network: network.name,
-        balance: ethers.formatEther(balance),
-      });
-    } catch (error) {
-      const errorMessage = getCleanErrorMessage(error);
-      console.error('[DEBUG_ETHEREUM] Infura API Key test: FAILED -', errorMessage);
-      if (errorMessage.includes('401')) {
-        console.error('[DEBUG_ETHEREUM] 401 error suggests invalid API Key or authentication issue');
+    // Test Infura API Key
+    if (process.env.INFURA_API_KEY) {
+      try {
+        console.log('[DEBUG_ETHEREUM] Found an Infura API key.  Validating it');
+        console.log('[DEBUG_ETHEREUM] Infura key (masked):', maskKey(process.env.INFURA_API_KEY));
+        console.log('[DEBUG_ETHEREUM] Infura key length:', process.env.INFURA_API_KEY.length);
+
+        // Validate API key format
+        if (process.env.INFURA_API_KEY.length < 20) {
+          throw new Error(
+            `API key seems too short (${process.env.INFURA_API_KEY.length} chars). Infura keys are typically 32+ characters.`,
+          );
+        }
+
+        // Test provider creation first
+        let testProvider;
+        try {
+          testProvider = new ethers.InfuraProvider(BLOCKCHAIN_NETWORK, process.env.INFURA_API_KEY);
+          console.log('[DEBUG_ETHEREUM] Infura provider created successfully');
+        } catch (providerError) {
+          const errorMessage = providerError instanceof Error ? providerError.message : String(providerError);
+          console.error('[DEBUG_ETHEREUM] Failed to create Infura provider:', errorMessage);
+          throw providerError;
+        }
+
+        // Test with getBalance which requires API key authentication
+        const balance = await testProvider.getBalance(walletAddress);
+        const network = await testProvider.getNetwork();
+
+        console.log(
+          '[DEBUG_ETHEREUM] Infura API key test: SUCCESS - Network:',
+          network.name,
+          'Balance:',
+          ethers.formatEther(balance),
+          'ETH',
+        );
+        results.push({
+          provider: 'Infura',
+          status: 'SUCCESS',
+          network: network.name,
+          balance: ethers.formatEther(balance),
+        });
+      } catch (error) {
+        const errorMessage = getCleanErrorMessage(error);
+        console.error('[DEBUG_ETHEREUM] Infura API key test: FAILED -', errorMessage);
+        if (errorMessage.includes('401')) {
+          console.error('[DEBUG_ETHEREUM] 401 error suggests invalid API key or authentication issue');
+        } else if (errorMessage.includes('rate limit')) {
+          console.error('[DEBUG_ETHEREUM] Rate limit error - check your API key tier');
+        }
+        results.push({
+          provider: 'Infura',
+          status: 'FAILED',
+          error: errorMessage,
+        });
       }
-      results.push({
-        provider: 'Infura',
-        status: 'FAILED',
-        error: errorMessage,
-      });
     }
-  }
-
-  // Warn about Infura Project ID and Secret (legacy)
-  if (process.env.INFURA_PROJECT_ID && process.env.INFURA_PROJECT_SECRET) {
-    console.log('[DEBUG_ETHEREUM] Found an Infura API Project ID and Secret. Replace this with INFURA_API_KEY.');
-    console.log(
-      '[DEBUG_ETHEREUM] If DEBUG_ETHEREUM_FAIL_ON_ERROR is set to true, this test will fail until this is fixed',
+  } else if (process.env.DEBUG_ETHEREUM_FAIL_ON_ERROR === 'true') {
+    console.error(
+      '[DEBUG_ETHEREUM] Missing required Ethereum service provider keys (ALCHEMY_API_KEY or INFURA_API_KEY)',
     );
-    console.log('[DEBUG_ETHEREUM] Otherwise, these key will be ignored');
     results.push({
-      provider: 'Infura',
+      provider: 'Ethereum Service Providers',
       status: 'FAILED',
-      error:
-        'Infura Project ID and Secret are no longer recommended. Make sure to unset them and set INFURA_API_KEY instead.',
+      error: 'Missing required Ethereum service provider keys (ALCHEMY_API_KEY or INFURA_API_KEY)',
     });
   }
 
-  // Test Etherscan API Key -- really just warn about it
-  if (process.env.ETHERSCAN_API_KEY) {
-    console.log('[DEBUG_ETHEREUM] Found an Etherscan API key. Etherscan is no longer recommended as a service node.');
-    console.log('[DEBUG_ETHEREUM] This test will fail until this is fixed');
-    console.log('[DEBUG_ETHEREUM] Etherscan key (masked):', maskKey(process.env.ETHERSCAN_API_KEY));
-    results.push({
-      provider: 'Etherscan',
-      status: 'FAILED',
-      error: 'Etherscan is no longer recommended. Make sure to unset ETHERSCAN_API_KEY environment variable.',
-    });
-  }
-
-  // Test Pocket API Key -- really just warn about it
-  if (process.env.POCKET_API_KEY) {
-    console.log('[DEBUG_ETHEREUM] Found an Pocket API key. Pocket is no longer recommended as a service node.');
-    console.log('[DEBUG_ETHEREUM] This test will fail until this is fixed');
-    console.log('[DEBUG_ETHEREUM] Pocket key (masked):', maskKey(process.env.POCKET_API_KEY));
-    results.push({
-      provider: 'Pocket',
-      status: 'FAILED',
-      error: 'Pocket is no longer recommended. Make sure to unset POCKET_API_KEY environment variable.',
-    });
-  }
-
-  // If no API keys are set, test public providers
-  if (
-    !process.env.ALCHEMY_API_KEY &&
-    !process.env.INFURA_API_KEY &&
-    !process.env.INFURA_PROJECT_ID &&
-    !process.env.ETHERSCAN_API_KEY &&
-    !process.env.POCKET_API_KEY
-  ) {
-    try {
-      console.log('[DEBUG_ETHEREUM] No Provider API keys found.  Validating public providers');
-      console.error('[DEBUG_ETHEREUM] This may work.  Sometimes. But its better to have at least one private API Key');
-      const testProvider = ethers.getDefaultProvider('mainnet');
-      // Test with getBalance which requires API key authentication
-      const balance = await testProvider.getBalance(walletAddress);
-      const network = await testProvider.getNetwork();
-      console.log(
-        '[DEBUG_ETHEREUM] Public providers test: SUCCESS - Network:',
-        network.name,
-        'Balance:',
-        ethers.formatEther(balance),
-        'ETH',
-      );
+  // Section 2: Check for old, no longer supported provider keys
+  if (process.env.POCKET_API_KEY || (process.env.INFURA_PROJECT_ID && process.env.INFURA_PROJECT_SECRET)) {
+    console.warn('[DEBUG_ETHEREUM] Found old, no longer supported provider keys.');
+    if (process.env.POCKET_API_KEY) {
+      console.warn('[DEBUG_ETHEREUM] Pocket API key is no longer supported.');
+      console.warn('[DEBUG_ETHEREUM] Pocket key (masked):', maskKey(process.env.POCKET_API_KEY));
       results.push({
-        provider: 'Public Providers',
-        status: 'SUCCESS',
-        network: network.name,
-        balance: ethers.formatEther(balance),
-      });
-    } catch (error) {
-      const errorMessage = getCleanErrorMessage(error);
-      console.error('[DEBUG_ETHEREUM] Public providers test: FAILED -', errorMessage);
-      results.push({
-        provider: 'Public Providers',
+        provider: 'Pocket',
         status: 'FAILED',
-        error: errorMessage,
+        error: 'Pocket API key is no longer supported.',
       });
     }
+    if (process.env.INFURA_PROJECT_ID && process.env.INFURA_PROJECT_SECRET) {
+      console.warn('[DEBUG_ETHEREUM] Infura Project ID and Secret are no longer supported.');
+      console.warn('[DEBUG_ETHEREUM] Infura Project ID (masked):', maskKey(process.env.INFURA_PROJECT_ID));
+      console.warn('[DEBUG_ETHEREUM] Infura Project Secret (masked):', maskKey(process.env.INFURA_PROJECT_SECRET));
+      results.push({
+        provider: 'Infura',
+        status: 'FAILED',
+        error: 'Infura Project ID and Secret are no longer supported.',
+      });
+    }
+  }
+
+  // Section 3: Check for wallet token API keys
+  if (process.env.ETHERSCAN_API_KEY || process.env.MORALIS_API_KEY) {
+    // Test Etherscan API Key
+    if (process.env.ETHERSCAN_API_KEY) {
+      try {
+        console.log('[DEBUG_ETHEREUM] Found an Etherscan API key. Validating it');
+        console.log('[DEBUG_ETHEREUM] Etherscan key (masked):', maskKey(process.env.ETHERSCAN_API_KEY));
+
+        // Test Etherscan API key by making a request
+        const response = await fetch(
+          `https://api.etherscan.io/api?module=account&action=balance&address=${walletAddress}&tag=latest&apikey=${process.env.ETHERSCAN_API_KEY}`,
+        );
+        const data = await response.json();
+        if (data.status === '0' && data.message === 'NOTOK') {
+          throw new Error(`Etherscan API error: ${data.result}`);
+        }
+        console.log('[DEBUG_ETHEREUM] Etherscan API key test: SUCCESS');
+        results.push({
+          provider: 'Etherscan',
+          status: 'SUCCESS',
+        });
+      } catch (error) {
+        const errorMessage = getCleanErrorMessage(error);
+        console.error('[DEBUG_ETHEREUM] Etherscan API key test: FAILED -', errorMessage);
+        if (errorMessage.includes('Invalid API Key') || errorMessage.includes('401')) {
+          console.error('[DEBUG_ETHEREUM] Invalid API key error - check your Etherscan API key');
+        }
+        results.push({
+          provider: 'Etherscan',
+          status: 'FAILED',
+          error: errorMessage,
+        });
+      }
+    }
+
+    // Test Moralis API Key
+    if (process.env.MORALIS_API_KEY) {
+      try {
+        console.log('[DEBUG_ETHEREUM] Found a Moralis API key. Validating it');
+        console.log('[DEBUG_ETHEREUM] Moralis key (masked):', maskKey(process.env.MORALIS_API_KEY));
+
+        // Test Moralis API key by making a request
+        const response = await fetch(`https://deep-index.moralis.io/api/v2/${walletAddress}/balance`, {
+          headers: { 'X-API-Key': process.env.MORALIS_API_KEY },
+        });
+        if (!response.ok) {
+          throw new Error(`Moralis API error: ${response.status} ${response.statusText}`);
+        }
+        console.log('[DEBUG_ETHEREUM] Moralis API key test: SUCCESS');
+        results.push({
+          provider: 'Moralis',
+          status: 'SUCCESS',
+        });
+      } catch (error) {
+        const errorMessage = getCleanErrorMessage(error);
+        console.error('[DEBUG_ETHEREUM] Moralis API key test: FAILED -', errorMessage);
+        if (errorMessage.includes('Invalid API key') || errorMessage.includes('401')) {
+          console.error('[DEBUG_ETHEREUM] Invalid API key error - check your Moralis API key');
+        }
+        results.push({
+          provider: 'Moralis',
+          status: 'FAILED',
+          error: errorMessage,
+        });
+      }
+    }
+  } else if (process.env.DEBUG_ETHEREUM_FAIL_ON_ERROR === 'true') {
+    console.error('[DEBUG_ETHEREUM] Missing required wallet token API keys (ETHERSCAN_API_KEY or MORALIS_API_KEY)');
+    results.push({
+      provider: 'Wallet Token APIs',
+      status: 'FAILED',
+      error: 'Missing required wallet token API keys (ETHERSCAN_API_KEY or MORALIS_API_KEY)',
+    });
   }
 
   return results;
@@ -337,24 +361,38 @@ async function testEthereumProviderKeys(walletAddress: string) {
       if (failedProviders.length > 0) {
         const errorMessage = `Provider validation failed: ${failedProviders.map((p) => `${p.provider}: ${p.error}`).join(', ')}`;
         console.error('[DEBUG_ETHEREUM]', errorMessage);
-        process.exit(1);
+        if (process.env.DEBUG_ETHEREUM_FAIL_ON_ERROR === 'true') {
+          console.error('[DEBUG_ETHEREUM] DEBUG_ETHEREUM_FAIL_ON_ERROR is set to true.  Exiting...');
+          process.exit(1);
+        } else {
+          console.log('[DEBUG_ETHEREUM] Will attempt to continue with the provided keys');
+        }
+      } else {
+        console.log('[DEBUG_ETHEREUM] All provider keys validated successfully!');
       }
-
-      console.log('[DEBUG_ETHEREUM] All provider keys validated successfully!');
     }
 
     const provider = getEthereumProvider();
-    let client = createEthereumWalletClient(provider);
+    let client = createEthereumWalletClient(provider, process.env.ETHERSCAN_API_KEY, process.env.MORALIS_API_KEY);
     let resp: { balances?: Array<{ asset: string; amount: string }> } = {};
     while (!resp.balances) {
       try {
-        resp = await LunchMoneyEthereumWalletConnection.getBalances({ walletAddress }, { client });
+        resp = await LunchMoneyEthereumWalletConnection.getBalances(
+          {
+            walletAddress,
+          },
+          { client },
+        );
       } catch (error) {
         if (INTEGRATIONS.ethereum.secondaryProvider) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.log(`[DEBUG_ETHEREUM] getBalances request failed: ${errorMessage}.`);
           console.log('[DEBUG_ETHEREUM] Will retry using the secondary Ethereum Provider');
-          client = createEthereumWalletClient(INTEGRATIONS.ethereum.secondaryProvider as ethers.AbstractProvider);
+          client = createEthereumWalletClient(
+            INTEGRATIONS.ethereum.secondaryProvider as ethers.AbstractProvider,
+            process.env.ETHERSCAN_API_KEY,
+            process.env.MORALIS_API_KEY,
+          );
           // Don't retry if this also fails
           INTEGRATIONS.ethereum.secondaryProvider = null;
         } else {

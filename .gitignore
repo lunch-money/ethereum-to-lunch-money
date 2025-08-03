@@ -13,3 +13,6 @@ node_modules
 # Documentation here: https://yarnpkg.com/features/zero-installs
 # !/.yarn/cache
 /.pnp.*
+
+# Local working documents
+ETHERSCAN_API_ANALYSIS.md 

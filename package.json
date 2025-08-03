@@ -43,12 +43,14 @@
     "lint": "eslint '{src,test}/**/*.{js,ts,tsx}' --fix",
     "test": "tsx node_modules/mocha/lib/cli/cli --recursive --extension ts",
     "test-live": "npx ts-node --project tsconfig.build-cjs.json bin/get-balances.ts",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "run-tests": "node run-tests.mjs"
   },
   "devDependencies": {
     "@types/chai": "^5.0.1",
     "@types/mocha": "^10.0.10",
     "@types/node": "^16.18.125",
+    "@types/node-fetch": "^2.6.13",
     "@types/sinon": "^17.0.3",
     "@typescript-eslint/eslint-plugin": "^8.22.0",
     "@typescript-eslint/parser": "^8.22.0",
