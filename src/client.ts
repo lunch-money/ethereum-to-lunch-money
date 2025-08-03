@@ -127,11 +127,7 @@ export class MoralisProvider {
   }
 }
 
-export const createEthereumWalletClient = (
-  provider: ethers.AbstractProvider,
-  etherscanApiKey?: string,
-  moralisApiKey?: string,
-): EthereumWalletClient => {
+export const createEthereumWalletClient = (provider: ethers.AbstractProvider): EthereumWalletClient => {
   // A custom ethscan provider implementation is needed to map `call` to `send` for ethscan to use the ethers client correctly.
   // This is a temporary solution until the ethscan library is updated to support ethers v6.
   const customProvider: EthersProviderLike = {
@@ -143,8 +139,8 @@ export const createEthereumWalletClient = (
     },
   };
 
-  const etherscanProvider = etherscanApiKey ? new EtherscanProvider(etherscanApiKey) : null;
-  const moralisProvider = moralisApiKey ? new MoralisProvider(moralisApiKey) : null;
+  const etherscanProvider = process.env.ETHERSCAN_API_KEY ? new EtherscanProvider(process.env.ETHERSCAN_API_KEY) : null;
+  const moralisProvider = process.env.MORALIS_API_KEY ? new MoralisProvider(process.env.MORALIS_API_KEY) : null;
 
   return {
     async getChainId() {

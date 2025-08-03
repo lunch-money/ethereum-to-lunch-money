@@ -373,7 +373,7 @@ async function testEthereumProviderKeys(walletAddress: string) {
     }
 
     const provider = getEthereumProvider();
-    let client = createEthereumWalletClient(provider, process.env.ETHERSCAN_API_KEY, process.env.MORALIS_API_KEY);
+    let client = createEthereumWalletClient(provider);
     let resp: { balances?: Array<{ asset: string; amount: string }> } = {};
     while (!resp.balances) {
       try {
@@ -388,11 +388,7 @@ async function testEthereumProviderKeys(walletAddress: string) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.log(`[DEBUG_ETHEREUM] getBalances request failed: ${errorMessage}.`);
           console.log('[DEBUG_ETHEREUM] Will retry using the secondary Ethereum Provider');
-          client = createEthereumWalletClient(
-            INTEGRATIONS.ethereum.secondaryProvider as ethers.AbstractProvider,
-            process.env.ETHERSCAN_API_KEY,
-            process.env.MORALIS_API_KEY,
-          );
+          client = createEthereumWalletClient(INTEGRATIONS.ethereum.secondaryProvider as ethers.AbstractProvider);
           // Don't retry if this also fails
           INTEGRATIONS.ethereum.secondaryProvider = null;
         } else {
