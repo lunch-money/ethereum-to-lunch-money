@@ -14,6 +14,11 @@ export interface EthereumWalletClient {
   discoverTokens(walletAddress: string): Promise<string[]>; // NEW
   discoverTokensHybrid(walletAddress: string): Promise<{ tokens: string[]; debug: string[] }>; // NEW HYBRID
 }
+export interface WalletAPIKeys {
+  [key: string]: string | null | undefined;
+  moralis?: string | null | undefined;
+  etherscan?: string | null | undefined;
+}
 
 export class EtherscanProvider {
   private apiKey: string;
@@ -127,7 +132,10 @@ export class MoralisProvider {
   }
 }
 
-export const createEthereumWalletClient = (provider: ethers.AbstractProvider): EthereumWalletClient => {
+export const createEthereumWalletClient = (
+  provider: ethers.AbstractProvider,
+  walletAPIKeys: WalletAPIKeys = { moralis: null, etherscan: null },
+): EthereumWalletClient => {
   // A custom ethscan provider implementation is needed to map `call` to `send` for ethscan to use the ethers client correctly.
   // This is a temporary solution until the ethscan library is updated to support ethers v6.
   const customProvider: EthersProviderLike = {
@@ -139,8 +147,8 @@ export const createEthereumWalletClient = (provider: ethers.AbstractProvider): E
     },
   };
 
-  const etherscanProvider = process.env.ETHERSCAN_API_KEY ? new EtherscanProvider(process.env.ETHERSCAN_API_KEY) : null;
-  const moralisProvider = process.env.MORALIS_API_KEY ? new MoralisProvider(process.env.MORALIS_API_KEY) : null;
+  const etherscanProvider = walletAPIKeys.etherscan ? new EtherscanProvider(walletAPIKeys.etherscan) : null;
+  const moralisProvider = walletAPIKeys.moralis ? new MoralisProvider(walletAPIKeys.moralis) : null;
 
   return {
     async getChainId() {

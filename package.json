@@ -44,7 +44,7 @@
     "test": "tsx node_modules/mocha/lib/cli/cli --recursive --extension ts",
     "test-live": "npx ts-node --project tsconfig.build-cjs.json bin/get-balances.ts",
     "prepare": "husky install",
-    "run-tests": "node run-tests.mjs"
+    "scenarios": "node run-scenarios.mjs"
   },
   "devDependencies": {
     "@types/chai": "^5.0.1",

@@ -5,6 +5,7 @@ import type {
 } from './types.js';
 
 import { loadTokenList, EthereumWalletClient } from './client.js';
+import EthereumInitializationService, { EthereumIntegrationType } from './ethereum_init.js';
 import * as ethers from 'ethers';
 
 // Import Token interface from client.ts
@@ -18,6 +19,7 @@ interface Token {
 }
 
 export { createEthereumWalletClient } from './client.js';
+export { EthereumInitializationService, EthereumIntegrationType };
 
 /** The minimum balance (in wei) that a token should have in order to be
  * considered for returning as a balance. */

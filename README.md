@@ -25,13 +25,15 @@ To minimize gas usage, but to support other tokens, the Moralis and Etherscan AP
 - **MORALIS_API_KEY**: [set up a key here](https://moralis.io/). Used for token discovery as the primary method. Moralis provides comprehensive ERC20 token discovery.
 - **ETHERSCAN_API_KEY**: [set up a key here](https://etherscan.io/apis). Used as a fallback for token discovery if Moralis fails. Etherscan provides token transfer event discovery.
 
-These lookups will return a list of all tokens the wallets have ever encountered, including test tokens and possibly tokens associated with scams. To further reduce the cost of balance lookups the list of discovered tokens is filtered against the list provided by 1inch, a decentralized exchange aggregator, that maintains a list of tokens with good reputations and liquidity. Filtering the list of all tokens ever used by the wallet against 1inch further reduces cost by eliminating tokens not on the provisioned network, or those that don't meet reputation standards
+These lookups will return a list of all tokens the wallets have ever encountered, including test tokens and possibly tokens associated with scams. To further reduce the cost of balance lookups the list of discovered tokens is filtered against the list provided by 1inch, a decentralized exchange aggregator, that maintains a list of tokens with good reputations and liquidity. Filtering the list of all tokens ever used by the wallet against 1inch further reduces cost by eliminating tokens not on the provisioned network, or those that don't meet reputation standards.
+
+We use a static list of tokens from 1inch, generated at the time the library is released, as the filter.
 
 Once the list of tokens contained in a wallet is obtained, the ethers library is used to obtain the balances for these tokens.  Ethers uses one or more Ethereum Service Providers.  It is recommended to provision API Key for both of the following service providers which are used in a primary/secondary fashion:
 - **ALCHEMY_API_KEY**: [set up a key here](https://dashboard.alchemy.com/). This is the recommended service to use.
 - **INFURA_API_KEY**: [set up a key here](https://developer.metamask.io/). If set with Alchemy, it will be used as a secondary.
 
-While it is possible to perform initialization and balance lookups without setting any of these API keys it is strongly recommended to set all of them.
+While it is possible to perform initialization and balance lookups without setting any of these API keys it is strongly recommended to set all of them.x
 
 Net/Net when properly provisioned, this service will provide Lunch Money users with ethereum wallet balances for tokens on the network specified by Lunch Money (the default mainnet) and that have a well established reputation with 1inch.
 
@@ -67,7 +69,8 @@ The Blockchain network is no longer configurable in the test script and defaults
 To run the script
 ```
 yarn test-live
-```A .vscode/launch.json configuration is include to facilitate running the script in the debugger with VSCode.
+```
+A .vscode/launch.json configuration is included to facilitate running the script in the debugger with VSCode.
 
 ## Refreshing the Token List
 
@@ -76,9 +79,9 @@ exchange uses. Run the included script
 `./bin/refresh-token-list.sh` to refresh the token list. Refreshing the token
 list will require a new version of this package to be released.
 
-## Automated Testing of Ethereum Provider Keys
+## Automated Testing of Ethereum Provider and API Key Scenarios
 
-This project includes an automated test script to validate the configuration and functionality of Ethereum service provider keys. The script tests various scenarios to ensure that the keys are correctly set and that the system behaves as expected under different conditions.
+This project includes an automated test script to validate a variety of API Key configuration scenarios. The script tests various scenarios to ensure that the keys are correctly validated and that the system behaves as expected under different conditions.
 
 ### Purpose
 
@@ -86,22 +89,24 @@ The automated test script is designed to:
 - Validate the presence and correctness of Ethereum service provider keys (e.g., Alchemy, Infura, Etherscan, Moralis).
 - Check for deprecated or unsupported keys and generate warnings.
 - Ensure that the system can fall back to appropriate methods when keys are missing or invalid.
+- Ensure that meaningful warning messages are generated when supplied keys are missing or invalid.
+- Ensure that the process ends when DEBUG_ETHEREUM_FAIL_ON_ERROR
 
 ### How to Run the Tests
 
-1. **Ensure Node.js is installed**: The script requires Node.js to execute.
-2. **Set Environment Variables**: Configure the necessary environment variables for the test scenarios. You can set these directly in your terminal or use a `.env` file.
-3. **Run the Test Script**:
+1. **Ensure environment is built** - `yarn build`
+1. **Set Environment Variables**: Configure the necessary environment variables for the test scenarios. You can set these directly in your terminal or use a `.env` file.
+2. **Run the Scenario Script**:
    ```
-   node run-tests.js
+   npm run scenarios
    ```
    This command will execute the test script, which will run through the predefined scenarios and log the results to the console.
 
 ### Scenarios Tested
 
-- **Valid Alchemy and Infura Keys**: Tests with valid keys to ensure successful validation.
+- **Valid and Invalid Alchemy and Infura Keys**: Tests with valid keys to ensure successful validation.
+- **Valid and Invalid Etherscan and Moralis Keys**: Tests with valid keys to ensure successful validation.
 - **Old Pocket API Key**: Tests with deprecated keys to generate warnings.
-- **Valid Etherscan and Moralis Keys**: Tests with valid keys to ensure successful validation.
 
 The results of each test scenario will be displayed in the console, indicating success or failure and any relevant warnings or errors.
 
