@@ -1,16 +1,13 @@
 import { ethers, AbstractProvider } from 'ethers';
-import { createEthereumWalletClient } from './main';
-import { WalletAPIKeys, EthereumWalletClient } from './client';
+import type { ProviderInfo, EthereumWalletClient } from './client.js';
+import { createEthereumWalletClient } from './client';
 import fetch, { Response } from 'node-fetch';
 
 export interface EthereumIntegrationType {
-  primaryProvider: ethers.AbstractProvider | null;
-  primaryProviderName: string | null;
-  primaryWalletClient: EthereumWalletClient | null;
-  secondaryProvider?: ethers.AbstractProvider | null;
-  secondaryProviderName?: string | null;
-  secondaryWalletClient?: EthereumWalletClient | null;
-  walletAPIKeys: WalletAPIKeys;
+  initialized: boolean;
+  walletClient: EthereumWalletClient;
+  serviceProviderInfo: ProviderInfo[];
+  walletProviderInfo: ProviderInfo[];
   [key: string]: unknown; // Allow additional properties
 }
 
@@ -19,26 +16,15 @@ export interface INTEGRATIONS {
   [key: string]: unknown; // Allow additional properties
 }
 
-// Define ProviderResult interface
-interface ProviderResult {
-  type: 'Service Provider' | 'API Provider';
-  name: string;
-  status: 'SUCCESS' | 'FAILED';
-  provider?: AbstractProvider;
-  error?: string;
-  network?: string;
-  balance?: string;
-}
-
 interface ApiKeyTestInfo {
   url: string;
   headers?: Record<string, string>;
-  responseHandler: (response: Response) => Promise<ProviderResult>;
+  responseHandler: (response: Response) => Promise<ProviderInfo>;
   provider: string;
 }
 
 // Helper function to wrap promises around provider tests
-const wrapPromise = (promise: Promise<ProviderResult>) =>
+const wrapPromise = (promise: Promise<ProviderInfo>) =>
   promise.then(
     (result) => result,
     (error) => error,
@@ -55,6 +41,7 @@ class EthereumInitializationService {
     this.logDebug = logDebug.bind(this);
     this.handleError = this.handleError.bind(this);
     // TODO: this could us a little more error handling
+    integrations.ethereum.initialized = false;
     this.ethereumIntegration = integrations.ethereum;
   }
 
@@ -65,7 +52,19 @@ class EthereumInitializationService {
 
     try {
       await this.validateAPIKeys();
+      if (this.ethereumIntegration.serviceProviderInfo.length > 0) {
+        // Yay, we got a valid Service Provider Key!
+        this.ethereumIntegration.walletClient = createEthereumWalletClient(
+          this.ethereumIntegration.serviceProviderInfo,
+          this.ethereumIntegration.walletProviderInfo,
+        );
+        this.logDebug('Ethereum initialized with supplied provider(s)');
+      } else {
+        this.ethereumIntegration.walletClient = createEthereumWalletClient();
+        this.logDebug('Ethereum initialized with public provider(s)');
+      }
       this.initialized = true;
+      this.ethereumIntegration.initialized = true;
     } catch (error) {
       const errorMessage = this.getErrorMessage(error);
       console.error(`Unexpected error in Ethereum initialization: ${errorMessage}`);
@@ -83,7 +82,7 @@ class EthereumInitializationService {
       // This is a well known test Ethereum wallet address
       const testAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
       const missingKeyResults = [];
-      let wrappedProviderPromises: Promise<ProviderResult>[] = [];
+      let wrappedProviderPromises: Promise<ProviderInfo>[] = [];
 
       // Prepare private provider tests
       const privateProviders = this.getPrivateProviders();
@@ -102,7 +101,7 @@ class EthereumInitializationService {
       }
 
       //Prepare API Key Tests
-      let wrappedApiKeyPromises: Promise<ProviderResult>[] = [];
+      let wrappedApiKeyPromises: Promise<ProviderInfo>[] = [];
       const apiKeys = this.getWalletTokenApiKeyTestInfo(testAddress);
       if (apiKeys.length === 0) {
         missingKeyResults.push({
@@ -125,7 +124,7 @@ class EthereumInitializationService {
         ...wrappedApiKeyPromises,
       ]);
 
-      this.processResults(allResults as ProviderResult[]);
+      this.processResults(allResults as ProviderInfo[]);
     } catch (error) {
       const errorMessage = this.getErrorMessage(error);
       console.error(`Unexpected error in Ethereum initialization: ${errorMessage}`);
@@ -133,11 +132,44 @@ class EthereumInitializationService {
     }
   }
 
-  private processResults(allResults: ProviderResult[]) {
-    // Check if any wallet API keys succeeded
-    // Do this first to the wallet client(s) with any good API keys
+  private processResults(allResults: ProviderInfo[]) {
+    // Process Provider results
+    const successfulProviders = allResults.filter(
+      (result) => result.status === 'SUCCESS' && result.type === 'Service Provider',
+    );
+    const failedProviders = allResults.filter((result) => result.status === 'FAILED');
 
-    // Now you can safely index with a string
+    if (successfulProviders.length > 0) {
+      this.ethereumIntegration.serviceProviderInfo = successfulProviders;
+      if (failedProviders.length > 0) {
+        this.logDebug(
+          `Secondary provider validation failed: ${failedProviders.map((p) => `${p.name}: ${p.error}`).join(', ')}`,
+        );
+        if (process.env.DEBUG_ETHEREUM_FAIL_ON_ERROR === 'true') {
+          this.logDebug('DEBUG_ETHEREUM_FAIL_ON_ERROR is set to true. Exiting...');
+          process.exit(1);
+        } else {
+          this.logDebug(
+            `Continuing with ${this.integrations.ethereum.primaryProviderName} as primary provider and no secondary provider.`,
+          );
+        }
+      }
+      // }
+    } else {
+      if (failedProviders.length > 0) {
+        this.logDebug(`Provider validation failed: ${failedProviders.map((p) => `${p.name}: ${p.error}`).join(', ')}`);
+        if (process.env.DEBUG_ETHEREUM_FAIL_ON_ERROR === 'true') {
+          this.logDebug('DEBUG_ETHEREUM_FAIL_ON_ERROR is set to true. Exiting...');
+          process.exit(1);
+        } else {
+          console.log('[DEBUG_ETHEREUM] Will continue with the public provider. THIS IS NOT RECOMMENDED!');
+        }
+      }
+      // Return here since we won't bother with API key tests if the provider tests failed
+      return;
+    }
+
+    // Process API Key test results
     const successfulApiKeys = allResults.filter(
       (result) => result.status === 'SUCCESS' && result.type === 'API Provider',
     );
@@ -157,10 +189,7 @@ class EthereumInitializationService {
         );
       }
     } else {
-      successfulApiKeys.forEach((apiKey) => {
-        const env_name = apiKey.name.toUpperCase() + '_API_KEY';
-        this.ethereumIntegration.walletAPIKeys[apiKey.name.toLowerCase()] = process.env[env_name] || null;
-      });
+      this.ethereumIntegration.walletProviderInfo = successfulApiKeys;
       if (failedApiKeys.length > 0) {
         this.logDebug(`API key validation failed: ${failedApiKeys.map((p) => `${p.name}: ${p.error}`).join(', ')}`);
         if (process.env.DEBUG_ETHEREUM_FAIL_ON_ERROR === 'true') {
@@ -173,68 +202,10 @@ class EthereumInitializationService {
         }
       }
     }
-
-    // Process Provider results
-    const successfulProviders = allResults.filter(
-      (result) => result.status === 'SUCCESS' && result.type === 'Service Provider',
-    );
-    const failedProviders = allResults.filter((result) => result.status === 'FAILED');
-
-    if (successfulProviders.length > 0) {
-      // Set the primary provider
-      const primaryProvider = successfulProviders[0].provider;
-      this.integrations.ethereum.primaryProvider = primaryProvider as AbstractProvider;
-      this.integrations.ethereum.primaryProviderName = successfulProviders[0].name;
-      this.logDebug(`${this.integrations.ethereum.primaryProviderName} is set as primary provider`);
-
-      // Create new wallet client with primary provider
-      this.integrations.ethereum.primaryWalletClient = createEthereumWalletClient(
-        primaryProvider as AbstractProvider,
-        this.ethereumIntegration.walletAPIKeys,
-      );
-
-      // Set the secondary provider if available
-      if (successfulProviders.length > 1) {
-        const secondaryProvider = successfulProviders[1].provider;
-        this.integrations.ethereum.secondaryProvider = secondaryProvider;
-        this.integrations.ethereum.secondaryProviderName = successfulProviders[1].name;
-        this.logDebug(`${this.integrations.ethereum.secondaryProviderName} is set as secondary provider`);
-
-        // Initialize secondary wallet client
-        this.integrations.ethereum.secondaryWalletClient = createEthereumWalletClient(
-          secondaryProvider as AbstractProvider,
-          this.ethereumIntegration.walletAPIKeys,
-        );
-      } else {
-        if (failedProviders.length > 0) {
-          this.logDebug(
-            `Secondary provider validation failed: ${failedProviders.map((p) => `${p.name}: ${p.error}`).join(', ')}`,
-          );
-          if (process.env.DEBUG_ETHEREUM_FAIL_ON_ERROR === 'true') {
-            this.logDebug('DEBUG_ETHEREUM_FAIL_ON_ERROR is set to true. Exiting...');
-            process.exit(1);
-          } else {
-            this.logDebug(
-              `Continuing with ${this.integrations.ethereum.primaryProviderName} as primary provider and no secondary provider.`,
-            );
-          }
-        }
-      }
-    } else {
-      if (failedProviders.length > 0) {
-        this.logDebug(`Provider validation failed: ${failedProviders.map((p) => `${p.name}: ${p.error}`).join(', ')}`);
-        if (process.env.DEBUG_ETHEREUM_FAIL_ON_ERROR === 'true') {
-          this.logDebug('DEBUG_ETHEREUM_FAIL_ON_ERROR is set to true. Exiting...');
-          process.exit(1);
-        } else {
-          console.log('[DEBUG_ETHEREUM] Will continue with the public provider. THIS IS NOT RECOMMENDED!');
-        }
-      }
-    }
   }
 
   // Add a utility function for error handling
-  private handleError(providerName: string, error: Error, type: 'Service Provider' | 'API Provider'): ProviderResult {
+  private handleError(providerName: string, error: Error, type: 'Service Provider' | 'API Provider'): ProviderInfo {
     const errorMessage = this.getCleanErrorMessage(error);
     this.logDebug(`${providerName} test: FAILED - ${errorMessage}`);
     return {
@@ -250,9 +221,10 @@ class EthereumInitializationService {
     providerInfo: {
       name: string;
       provider: AbstractProvider;
+      apiKey?: string;
     },
     testAddress: string,
-  ): Promise<ProviderResult> {
+  ): Promise<ProviderInfo> {
     try {
       const balance = await providerInfo.provider.getBalance(testAddress);
       const network = await providerInfo.provider.getNetwork();
@@ -266,6 +238,7 @@ class EthereumInitializationService {
         status: 'SUCCESS',
         network: network.name,
         balance: balance.toString(),
+        apiKey: providerInfo.apiKey,
       };
     } catch (error) {
       return this.handleError(providerInfo.name, error as Error, 'Service Provider');
@@ -273,7 +246,7 @@ class EthereumInitializationService {
   }
 
   // Check if a wallet token API key is valid
-  private async testApiKey(apiKeyTestInfo: ApiKeyTestInfo): Promise<ProviderResult> {
+  private async testApiKey(apiKeyTestInfo: ApiKeyTestInfo): Promise<ProviderInfo> {
     try {
       let response: Response;
       if (apiKeyTestInfo.headers) {
@@ -358,13 +331,13 @@ class EthereumInitializationService {
 
     if (process.env.ALCHEMY_API_KEY) {
       const alchemyProvider = new ethers.AlchemyProvider('mainnet', process.env.ALCHEMY_API_KEY);
-      providers.push({ name: 'Alchemy', provider: alchemyProvider });
+      providers.push({ name: 'Alchemy', provider: alchemyProvider, apiKey: process.env.ALCHEMY_API_KEY });
       this.logDebug(`Found an Alchemy key (masked): ${this.maskKey(process.env.ALCHEMY_API_KEY)}`);
     }
 
     if (process.env.INFURA_API_KEY) {
       const infuraProvider = new ethers.InfuraProvider('mainnet', process.env.INFURA_API_KEY);
-      providers.push({ name: 'Infura', provider: infuraProvider });
+      providers.push({ name: 'Infura', provider: infuraProvider, apiKey: process.env.INFURA_API_KEY });
       this.logDebug(`Found an Infura key (masked): ${this.maskKey(process.env.INFURA_API_KEY)}`);
     }
 
@@ -398,15 +371,15 @@ class EthereumInitializationService {
 
   // Define handlers to validate response from Wallet API requests
   // Use arrow functions to bind 'this' to the class instance
-  private handleMoralisResponse = async (response: Response): Promise<ProviderResult> => {
+  private handleMoralisResponse = async (response: Response): Promise<ProviderInfo> => {
     if (!response.ok) {
       throw new Error(`Moralis API error: ${response.status} ${response.statusText}`);
     }
     this.logDebug('Moralis API key test: SUCCESS');
-    return { type: 'API Provider', name: 'Moralis', status: 'SUCCESS' };
+    return { type: 'API Provider', name: 'Moralis', status: 'SUCCESS', apiKey: process.env.MORALIS_API_KEY };
   };
 
-  private handleEtherscanResponse = async (response: Response): Promise<ProviderResult> => {
+  private handleEtherscanResponse = async (response: Response): Promise<ProviderInfo> => {
     const data = await response.json();
     if (data.status === '0' && data.message === 'NOTOK') {
       throw new Error(`Etherscan API error: ${data.result}`);
@@ -416,6 +389,7 @@ class EthereumInitializationService {
       type: 'API Provider',
       name: 'Etherscan',
       status: 'SUCCESS',
+      apiKey: process.env.ETHERSCAN_API_KEY,
     };
   };
 

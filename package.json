@@ -1,12 +1,15 @@
 {
   "name": "@lunch-money/ethereum-to-lunch-money",
   "packageManager": "yarn@4.6.0",
-  "author": "Max Dumas <maltor124@gmail.com>",
+  "authors": [
+    "Max Dumas <maltor124@gmail.com>",
+    "JP Shipherd <jp@lunchmoney.app>"
+  ],
   "bugs": {
     "url": "https://github.com/lunch-money/ethereum-to-lunch-money/issues"
   },
   "homepage": "https://github.com/lunch-money/ethereum-to-lunch-money#README",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "license": "MIT",
   "keywords": [
     "lunch money",

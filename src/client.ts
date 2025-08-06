@@ -1,25 +1,47 @@
 import * as ethscan from '@mycrypto/eth-scan';
-import * as ethers from 'ethers';
+import { ethers, type Provider, type AbstractProvider } from 'ethers';
 
 import tokenList1inch from '../fixtures/1inch.json';
 import { EthersProviderLike } from '@mycrypto/eth-scan/typings/src/providers/ethers.js';
+import type { LunchMoneyCryptoConnectionBalances } from './types.js';
 
 // Use node-fetch for Node.js compatibility
 import fetch from 'node-fetch';
 
-export interface EthereumWalletClient {
-  getChainId(): Promise<bigint>;
-  getWeiBalance(walletAddress: string): Promise<bigint>;
-  getTokensBalance(walletAddress: string, tokenContractAddresses: string[]): Promise<ethscan.BalanceMap<bigint>>;
-  discoverTokens(walletAddress: string): Promise<string[]>; // NEW
-  discoverTokensHybrid(walletAddress: string): Promise<{ tokens: string[]; debug: string[] }>; // NEW HYBRID
-}
-export interface WalletAPIKeys {
-  [key: string]: string | null | undefined;
-  moralis?: string | null | undefined;
-  etherscan?: string | null | undefined;
-}
+// Define ProviderInfo interface
+export type ProviderInfo = {
+  type: 'Service Provider' | 'API Provider';
+  name: string;
+  status: 'SUCCESS' | 'FAILED';
+  apiKey?: string;
+  provider?: Provider | AbstractProvider;
+  customProvider?: EthersProviderLike;
+  error?: string;
+  network?: string;
+  balance?: string;
+};
 
+/**
+ * Debug function that logs to console.log if DEBUG_ETHEREUM environment variable is set
+ */
+export const debug = (...args: unknown[]): void => {
+  if (process.env.DEBUG_ETHEREUM) {
+    const timestamp = new Date().toISOString();
+    console.log(`[DEBUG_ETHEREUM] [${timestamp}]`, ...args);
+  }
+};
+
+export interface EthereumWalletClient {
+  getBalances(walletAddress: string, negligibleBalanceThreshold: number): Promise<LunchMoneyCryptoConnectionBalances>;
+  getWeiBalance(walletAddress: string, provider: AbstractProvider): Promise<bigint>;
+  getChainId(provider: AbstractProvider): Promise<bigint>;
+  getTokensBalance(
+    walletAddress: string,
+    tokenContractAddresses: string[],
+    providerInfo: ProviderInfo,
+  ): Promise<ethscan.BalanceMap<bigint>>;
+  discoverTokensHybrid(walletAddress: string, chainId: bigint): Promise<{ tokens: string[]; debug: string[] }>;
+}
 export class EtherscanProvider {
   private apiKey: string;
   private baseUrl: string = 'https://api.etherscan.io/v2/api';
@@ -133,46 +155,239 @@ export class MoralisProvider {
 }
 
 export const createEthereumWalletClient = (
-  provider: ethers.AbstractProvider,
-  walletAPIKeys: WalletAPIKeys = { moralis: null, etherscan: null },
+  serviceProviderInfo: ProviderInfo[] = [],
+  walletAPIProviderInfo: ProviderInfo[] = [],
 ): EthereumWalletClient => {
-  // A custom ethscan provider implementation is needed to map `call` to `send` for ethscan to use the ethers client correctly.
-  // This is a temporary solution until the ethscan library is updated to support ethers v6.
-  const customProvider: EthersProviderLike = {
-    send<Result>(method: string, params: unknown[] | unknown): Promise<Result> {
-      // Type pulled from: https://github.com/MyCryptoHQ/eth-scan/blob/master/src/providers/provider.ts#L32
-      const typedParams = params as [{ to: string; data: string }, string];
+  let providers: ReadonlyArray<ProviderInfo> = [];
+  let etherscanProvider: EtherscanProvider | null = null;
+  let moralisProvider: MoralisProvider | null = null;
 
-      return provider.call({ to: typedParams[0].to, data: typedParams[0].data }) as Promise<Result>;
-    },
+  try {
+    // Initialize the custom provider(s) for ethscan to use the ethers client correctly.
+    // A custom ethscan provider implementation is needed to map `call` to `send` for ethscan to use the ethers client correctly.
+    // This is a temporary solution until the ethscan library is updated to support ethers v6.
+    if (serviceProviderInfo.length) {
+      providers = Object.freeze(
+        serviceProviderInfo.map((providerInfo) => {
+          if (providerInfo.type === 'Service Provider' && providerInfo.provider) {
+            return {
+              ...providerInfo,
+              customProvider: {
+                send<Result>(method: string, params: unknown[] | unknown): Promise<Result> {
+                  // Type pulled from: https://github.com/MyCryptoHQ/eth-scan/blob/master/src/providers/provider.ts#L32
+                  const typedParams = params as [{ to: string; data: string }, string];
+                  return providerInfo.provider?.call({
+                    to: typedParams[0].to,
+                    data: typedParams[0].data,
+                  }) as Promise<Result>;
+                },
+              },
+            };
+          } else {
+            throw new Error(`Invalid service provider: ${providerInfo.name} passed to createEthereumWalletClient`);
+          }
+        }),
+      );
+
+      // Initialize any wallet API providers
+      for (const walletKeyInfo of walletAPIProviderInfo) {
+        if (walletKeyInfo.type === 'API Provider') {
+          if (walletKeyInfo.name === 'Etherscan' && walletKeyInfo.apiKey) {
+            etherscanProvider = new EtherscanProvider(walletKeyInfo.apiKey);
+          } else if (walletKeyInfo.name === 'Moralis' && walletKeyInfo.apiKey) {
+            moralisProvider = new MoralisProvider(walletKeyInfo.apiKey);
+          }
+        } else {
+          throw new Error(`Invalid wallet API provider: ${walletKeyInfo.name} passed to createEthereumWalletClient`);
+        }
+      }
+    } else {
+      // Create a wallet using the quorum of free service providers
+      const publicProvider = ethers.getDefaultProvider();
+      providers = Object.freeze([
+        ...providers,
+        {
+          type: 'Service Provider',
+          name: 'Public Provider',
+          provider: publicProvider as Provider,
+          status: 'SUCCESS',
+          customProvider: {
+            send<Result>(method: string, params: unknown[] | unknown): Promise<Result> {
+              const typedParams = params as [{ to: string; data: string }, string];
+              return publicProvider?.call({ to: typedParams[0].to, data: typedParams[0].data }) as Promise<Result>;
+            },
+          },
+        },
+      ]);
+    }
+  } catch (error) {
+    throw new Error(`Error creating Ethereum wallet client: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const internalGetBalances = async (
+    client: EthereumWalletClient,
+    walletAddress: string,
+    negligibleBalanceThreshold: number,
+    provider: AbstractProvider,
+    customProvider: EthersProviderLike,
+    obscuredWalletAddress: string,
+  ): Promise<LunchMoneyCryptoConnectionBalances> => {
+    let timeoutId: NodeJS.Timeout | undefined;
+    const timeoutDuration = process.env.ETHEREUM_BALANCE_TIMEOUT_MSECS
+      ? parseInt(process.env.ETHEREUM_BALANCE_TIMEOUT_MSECS)
+      : 60000;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`Ethereum connector getBalances timed out after ${timeoutDuration} milliseconds.`));
+      }, timeoutDuration);
+    });
+
+    const result = await Promise.race([
+      (async () => {
+        try {
+          const weiBalance = await client.getWeiBalance(walletAddress, provider);
+          const chainId = await client.getChainId(provider);
+
+          let discoveredTokens: Token[];
+          try {
+            const discoveryResult = await client.discoverTokensHybrid(walletAddress, chainId);
+            discoveryResult.debug.forEach((msg) => {
+              debug(`Wallet ${obscuredWalletAddress}: ${msg}`);
+            });
+
+            const hasDiscoveryAPIs = discoveryResult.debug.some(
+              (msg) =>
+                msg.includes('Moralis: Discovered') ||
+                msg.includes('Etherscan: Discovered') ||
+                msg.includes('Etherscan (fallback): Discovered'),
+            );
+
+            if (discoveryResult.tokens.length === 0 && !hasDiscoveryAPIs) {
+              debug(`Wallet ${obscuredWalletAddress}: No discovery APIs available, using full token list`);
+              discoveredTokens = (await loadTokenList()).filter((t) => BigInt(t.chainId) === BigInt(chainId));
+            } else if (discoveryResult.tokens.length === 0) {
+              discoveredTokens = [];
+              debug(`Wallet ${obscuredWalletAddress}: No tokens discovered, using empty token list`);
+            } else {
+              discoveredTokens = await loadTokenList().then((tokens) =>
+                tokens.filter(
+                  (t) => discoveryResult.tokens.includes(t.address) && BigInt(t.chainId) === BigInt(chainId),
+                ),
+              );
+              debug(
+                `Wallet ${obscuredWalletAddress}: Filtered to ${discoveredTokens.length} tokens on chain ${chainId}`,
+              );
+            }
+          } catch (error) {
+            debug(`Wallet ${obscuredWalletAddress}: Token discovery failed, falling back to full token list:`, error);
+            discoveredTokens = (await loadTokenList()).filter((t) => BigInt(t.chainId) === BigInt(chainId));
+          }
+
+          debug(`Wallet ${obscuredWalletAddress}: Checking balances for ${discoveredTokens.length} tokens`);
+
+          const map = await ethscan.getTokensBalance(
+            customProvider,
+            walletAddress,
+            discoveredTokens.map((t) => t.address),
+          );
+
+          return { weiBalance, chainId, map, discoveredTokens };
+        } finally {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+        }
+      })(),
+      timeout,
+    ]);
+
+    const { weiBalance, chainId, map, discoveredTokens } = result;
+    debug('ethers.getTokensBalance returned for wallet address:', obscuredWalletAddress);
+
+    const balances = Object.entries(map)
+      .map(([address, balance]) => {
+        const token = discoveredTokens.find((t) => t.address === address);
+
+        if (!token) {
+          throw new Error(`Token ${address} not found in discovered token list for chainId ${chainId}`);
+        }
+
+        return {
+          asset: token.symbol,
+          undivisedAmount: balance,
+          decimals: token.decimals,
+        };
+      })
+      .concat({ asset: 'ETH', undivisedAmount: weiBalance, decimals: 18 })
+      .map(({ asset, undivisedAmount, decimals }) => ({ asset, amount: ethers.formatUnits(undivisedAmount, decimals) }))
+      .filter((b) => ethers.parseUnits(b.amount, 18) > negligibleBalanceThreshold)
+      .map((b) => ({ asset: b.asset, amount: String(b.amount) }))
+      .sort((a, b) => a.asset.localeCompare(b.asset));
+
+    debug(`Returning from getBalances for ${obscuredWalletAddress}:`, balances);
+
+    const balanceResult: LunchMoneyCryptoConnectionBalances = {
+      providerName: 'wallet_ethereum',
+      balances,
+    };
+
+    return balanceResult;
   };
 
-  const etherscanProvider = walletAPIKeys.etherscan ? new EtherscanProvider(walletAPIKeys.etherscan) : null;
-  const moralisProvider = walletAPIKeys.moralis ? new MoralisProvider(walletAPIKeys.moralis) : null;
-
   return {
-    async getChainId() {
+    async getChainId(provider: AbstractProvider) {
       return (await provider.getNetwork()).chainId;
     },
-    async getWeiBalance(walletAddress) {
+    async getWeiBalance(walletAddress: string, provider: AbstractProvider) {
       return await provider.getBalance(walletAddress);
     },
-    async getTokensBalance(walletAddress, tokenContractAddresses) {
-      return ethscan.getTokensBalance(customProvider, walletAddress, tokenContractAddresses);
-    },
-    async discoverTokens(walletAddress) {
-      if (!etherscanProvider) {
-        throw new Error('Etherscan API key not provided for token discovery');
+    async getBalances(walletAddress: string, negligibleBalanceThreshold: number) {
+      const obscuredWalletAddress = `0x..${walletAddress.slice(-6)}`;
+      debug('getBalances called for wallet address:', obscuredWalletAddress);
+      let result: LunchMoneyCryptoConnectionBalances = {
+        providerName: 'wallet_ethereum',
+        balances: [],
+      };
+      let providerIndex = 0;
+      let provider: AbstractProvider = providers[0].provider as AbstractProvider;
+      let customProvider: EthersProviderLike = providers[0].customProvider as EthersProviderLike;
+      debug(`Attempting lookup using provider: ${providers[0].name}`);
+      while (result.balances.length === 0) {
+        try {
+          result = await internalGetBalances(
+            this,
+            walletAddress,
+            negligibleBalanceThreshold,
+            provider,
+            customProvider,
+            obscuredWalletAddress,
+          );
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          debug(`Error getting balances using provider ${providers[providerIndex].name}: ${errorMessage}`);
+          if (errorMessage.includes('unconfigured name') || errorMessage.includes('bad address checksum')) {
+            throw new Error(`Invalid wallet address. Account needs to be relinked.`);
+          } else if (providerIndex === providers.length - 1) {
+            throw error;
+          }
+          providerIndex = providerIndex + 1;
+          provider = providers[providerIndex].provider as AbstractProvider;
+          customProvider = providers[providerIndex].customProvider as EthersProviderLike;
+          debug(`Attempting lookup using provider: ${providers[providerIndex].name}`);
+        }
       }
-      return await etherscanProvider.discoverTokensForWallet(walletAddress);
+      return result;
     },
-    async discoverTokensHybrid(walletAddress) {
+    async getTokensBalance(walletAddress: string, tokenContractAddresses: string[], providerInfo: ProviderInfo) {
+      if (providerInfo.customProvider) {
+        return ethscan.getTokensBalance(providerInfo.customProvider, walletAddress, tokenContractAddresses);
+      } else {
+        throw new Error(`No ethscan compatible provider found for ${providerInfo.name}`);
+      }
+    },
+    async discoverTokensHybrid(walletAddress: string, chainId: bigint) {
       const debug: string[] = [];
       const allTokens = new Set<string>();
-
-      // Get the chain ID from the provider
-      const chainId = await provider.getNetwork().then((network) => network.chainId);
-      debug.push(`Network detected: Chain ID ${chainId}`);
 
       // 1. Moralis Discovery (PRIMARY)
       if (moralisProvider) {
@@ -215,10 +430,7 @@ export const createEthereumWalletClient = (
         }
       }
 
-      const finalTokens = Array.from(allTokens);
-      debug.push(`Total unique tokens discovered: ${finalTokens.length}`);
-
-      return { tokens: finalTokens, debug };
+      return { tokens: Array.from(allTokens), debug };
     },
   };
 };
