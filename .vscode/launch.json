@@ -26,17 +26,29 @@
                 "DEBUG_ETHEREUM": "true",
                 // Set the service node provider API keys here
                 // If none are set, the public API will be used which may be rate limited
-                // ALCHEMY_API_KEY: "1234567890",
-                // INFURA_API_KEY: "1234567890",
+                // "ALCHEMY_API_KEY": "1234567890",
+                // "INFURA_API_KEY": "1234567890",
+
+                // Set the wallet API provider API keys here
+                // If none are set, each balance lookup will check all possible tokens (expensive)
+                // MORALIS_API_KEY: "1234567890",
+                // ETHERSCAN_API_KEY: "1234567890",
+
+                // Set the timeout for the balance lookup in milliseconds
+                // Speeds up fallback to secondary provider
+                // Defaults is 60000ms or 60 seconds
+                // "ETHEREUM_BALANCE_TIMEOUT_MSECS": "60000"
 
                 // These legacy service nodes are no longer recommended
-                // "ETHERSCAN_API_KEY": "1234567890",
                 // "POCKET_API_KEY": "1234567890",
                 // "INFURA_PROJECT_ID": "1234567890",
                 // "INFURA_PROJECT_SECRET": "1234567890",
 
                 // Set the wallet address to test here, otherwise a well known wallet address will be used for testing
                 //"LM_ETHEREUM_WALLET_ADDRESS": "0x1234567890"
+
+                // Fail if API key validation fails or keys are missing
+                // DEBUG_ETHEREUM_FAIL_ON_ERROR: "true"
             },
             "trace": true,
             "sourceMaps": true
