@@ -40,7 +40,7 @@ export interface EthereumWalletClient {
     tokenContractAddresses: string[],
     providerInfo: ProviderInfo,
   ): Promise<ethscan.BalanceMap<bigint>>;
-  discoverTokensHybrid(walletAddress: string, chainId: bigint): Promise<{ tokens: string[]; debug: string[] }>;
+  discoverTokensHybrid(walletAddress: string, chainId: bigint): Promise<string[]>;
 }
 export class EtherscanProvider {
   private apiKey: string;
@@ -248,50 +248,39 @@ export const createEthereumWalletClient = (
           const weiBalance = await client.getWeiBalance(walletAddress, provider);
           const chainId = await client.getChainId(provider);
 
-          let discoveredTokens: Token[];
+          let filteredTokens: Token[] = [];
           try {
-            const discoveryResult = await client.discoverTokensHybrid(walletAddress, chainId);
-            discoveryResult.debug.forEach((msg) => {
-              debug(`Wallet ${obscuredWalletAddress}: ${msg}`);
-            });
-
-            const hasDiscoveryAPIs = discoveryResult.debug.some(
-              (msg) =>
-                msg.includes('Moralis: Discovered') ||
-                msg.includes('Etherscan: Discovered') ||
-                msg.includes('Etherscan (fallback): Discovered'),
-            );
-
-            if (discoveryResult.tokens.length === 0 && !hasDiscoveryAPIs) {
-              debug(`Wallet ${obscuredWalletAddress}: No discovery APIs available, using full token list`);
-              discoveredTokens = (await loadTokenList()).filter((t) => BigInt(t.chainId) === BigInt(chainId));
-            } else if (discoveryResult.tokens.length === 0) {
-              discoveredTokens = [];
-              debug(`Wallet ${obscuredWalletAddress}: No tokens discovered, using empty token list`);
+            let discoveredTokens: string[] = [];
+            if (moralisProvider || etherscanProvider) {
+              discoveredTokens = await client.discoverTokensHybrid(walletAddress, chainId);
+              if (discoveredTokens.length > 0) {
+                filteredTokens = await loadTokenList().then((tokens) =>
+                  tokens.filter((t) => discoveredTokens.includes(t.address) && BigInt(t.chainId) === BigInt(chainId)),
+                );
+                debug(
+                  `Wallet ${obscuredWalletAddress}: Filtered to ${filteredTokens.length} tokens on chain ${chainId}`,
+                );
+              } else {
+                debug(`Wallet ${obscuredWalletAddress}: No tokens discovered, using empty token list`);
+              }
             } else {
-              discoveredTokens = await loadTokenList().then((tokens) =>
-                tokens.filter(
-                  (t) => discoveryResult.tokens.includes(t.address) && BigInt(t.chainId) === BigInt(chainId),
-                ),
-              );
-              debug(
-                `Wallet ${obscuredWalletAddress}: Filtered to ${discoveredTokens.length} tokens on chain ${chainId}`,
-              );
+              debug(`Wallet ${obscuredWalletAddress}: No discovery APIs available, using full token list`);
+              filteredTokens = (await loadTokenList()).filter((t) => BigInt(t.chainId) === BigInt(chainId));
             }
           } catch (error) {
             debug(`Wallet ${obscuredWalletAddress}: Token discovery failed, falling back to full token list:`, error);
-            discoveredTokens = (await loadTokenList()).filter((t) => BigInt(t.chainId) === BigInt(chainId));
+            filteredTokens = (await loadTokenList()).filter((t) => BigInt(t.chainId) === BigInt(chainId));
           }
 
-          debug(`Wallet ${obscuredWalletAddress}: Checking balances for ${discoveredTokens.length} tokens`);
+          debug(`Wallet ${obscuredWalletAddress}: Checking balances for ETH and ${filteredTokens.length} other tokens`);
 
           const map = await ethscan.getTokensBalance(
             customProvider,
             walletAddress,
-            discoveredTokens.map((t) => t.address),
+            filteredTokens.map((t) => t.address),
           );
 
-          return { weiBalance, chainId, map, discoveredTokens };
+          return { weiBalance, chainId, map, filteredTokens };
         } finally {
           if (timeoutId) {
             clearTimeout(timeoutId);
@@ -301,12 +290,12 @@ export const createEthereumWalletClient = (
       timeout,
     ]);
 
-    const { weiBalance, chainId, map, discoveredTokens } = result;
+    const { weiBalance, chainId, map, filteredTokens } = result;
     debug('ethers.getTokensBalance returned for wallet address:', obscuredWalletAddress);
 
     const balances = Object.entries(map)
       .map(([address, balance]) => {
-        const token = discoveredTokens.find((t) => t.address === address);
+        const token = filteredTokens.find((t) => t.address === address);
 
         if (!token) {
           throw new Error(`Token ${address} not found in discovered token list for chainId ${chainId}`);
@@ -348,10 +337,14 @@ export const createEthereumWalletClient = (
         providerName: 'wallet_ethereum',
         balances: [],
       };
+      if (providers.length === 0) {
+        throw new Error('No Ethereum providers available');
+      }
       let providerIndex = 0;
       let provider: AbstractProvider = providers[0].provider as AbstractProvider;
       let customProvider: EthersProviderLike = providers[0].customProvider as EthersProviderLike;
-      debug(`Attempting lookup using provider: ${providers[0].name}`);
+      let providerName = providers[0].name;
+      debug(`Attempting lookup using primary provider: ${providerName}`);
       while (result.balances.length === 0) {
         try {
           result = await internalGetBalances(
@@ -364,16 +357,17 @@ export const createEthereumWalletClient = (
           );
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          debug(`Error getting balances using provider ${providers[providerIndex].name}: ${errorMessage}`);
+          debug(`Error getting balances using provider ${providerName}: ${errorMessage}`);
           if (errorMessage.includes('unconfigured name') || errorMessage.includes('bad address checksum')) {
             throw new Error(`Invalid wallet address. Account needs to be relinked.`);
           } else if (providerIndex === providers.length - 1) {
             throw error;
           }
           providerIndex = providerIndex + 1;
+          providerName = providers[providerIndex].name;
           provider = providers[providerIndex].provider as AbstractProvider;
           customProvider = providers[providerIndex].customProvider as EthersProviderLike;
-          debug(`Attempting lookup using provider: ${providers[providerIndex].name}`);
+          debug(`Retrying lookup using provider: ${providerName}`);
         }
       }
       return result;
@@ -385,52 +379,51 @@ export const createEthereumWalletClient = (
         throw new Error(`No ethscan compatible provider found for ${providerInfo.name}`);
       }
     },
-    async discoverTokensHybrid(walletAddress: string, chainId: bigint) {
-      const debug: string[] = [];
+    async discoverTokensHybrid(walletAddress: string, chainId: bigint): Promise<string[]> {
       const allTokens = new Set<string>();
 
       // 1. Moralis Discovery (PRIMARY)
       if (moralisProvider) {
         try {
           const moralisTokens = await moralisProvider.discoverTokensForWallet(walletAddress, chainId);
-          debug.push(`Moralis: Discovered ${moralisTokens.length} tokens`);
+          debug(`Moralis: Discovered ${moralisTokens.length} tokens`);
           moralisTokens.forEach((t) => allTokens.add(t));
         } catch (error) {
-          debug.push(`Moralis: Failed - ${error instanceof Error ? error.message : String(error)}`);
+          debug(`Moralis: Failed - ${error instanceof Error ? error.message : String(error)}`);
 
           // 2. Etherscan Discovery (FALLBACK ONLY)
           if (etherscanProvider) {
             try {
               const etherscanTokens = await etherscanProvider.discoverTokensForWallet(walletAddress, chainId);
-              debug.push(`Etherscan (fallback): Discovered ${etherscanTokens.length} tokens`);
+              debug(`Etherscan (fallback): Discovered ${etherscanTokens.length} tokens`);
               etherscanTokens.forEach((t) => allTokens.add(t));
             } catch (fallbackError) {
-              debug.push(
+              debug(
                 `Etherscan (fallback): Failed - ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
               );
             }
           } else {
-            debug.push('Etherscan: No API key provided for fallback');
+            debug('Etherscan: No API key provided for fallback');
           }
         }
       } else {
-        debug.push('Moralis: No API key provided');
+        debug('Moralis: No API key provided');
 
         // 3. Etherscan Discovery (PRIMARY if no Moralis)
         if (etherscanProvider) {
           try {
             const etherscanTokens = await etherscanProvider.discoverTokensForWallet(walletAddress, chainId);
-            debug.push(`Etherscan: Discovered ${etherscanTokens.length} tokens`);
+            debug(`Etherscan: Discovered ${etherscanTokens.length} tokens`);
             etherscanTokens.forEach((t) => allTokens.add(t));
           } catch (error) {
-            debug.push(`Etherscan: Failed - ${error instanceof Error ? error.message : String(error)}`);
+            debug(`Etherscan: Failed - ${error instanceof Error ? error.message : String(error)}`);
           }
         } else {
-          debug.push('Etherscan: No API key provided');
+          debug('Etherscan: No API key provided');
         }
       }
 
-      return { tokens: Array.from(allTokens), debug };
+      return Array.from(allTokens);
     },
   };
 };

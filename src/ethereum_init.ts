@@ -149,9 +149,8 @@ class EthereumInitializationService {
           this.logDebug('DEBUG_ETHEREUM_FAIL_ON_ERROR is set to true. Exiting...');
           process.exit(1);
         } else {
-          this.logDebug(
-            `Continuing with ${this.integrations.ethereum.primaryProviderName} as primary provider and no secondary provider.`,
-          );
+          const primaryProvider = this.integrations.ethereum.serviceProviderInfo[0];
+          this.logDebug(`Continuing with ${primaryProvider.name} as primary provider and no secondary provider.`);
         }
       }
       // }
