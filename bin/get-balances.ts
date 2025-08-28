@@ -62,8 +62,12 @@ function logDebug(message: string) {
 
     logDebug(`Balance fetch completed in ${duration}ms`);
 
-    for (const { asset, amount } of resp.balances) {
-      console.log(`${asset}: ${amount}`);
+    if (resp.balances.length === 0) {
+      console.log('No balances found');
+    } else {
+      for (const { asset, amount } of resp.balances) {
+        console.log(`${asset}: ${amount}`);
+      }
     }
 
     process.exit(0);

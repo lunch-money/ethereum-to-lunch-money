@@ -345,7 +345,8 @@ export const createEthereumWalletClient = (
       let customProvider: EthersProviderLike = providers[0].customProvider as EthersProviderLike;
       let providerName = providers[0].name;
       debug(`Attempting lookup using primary provider: ${providerName}`);
-      while (result.balances.length === 0) {
+      let balanceFound = false;
+      while (!balanceFound) {
         try {
           result = await internalGetBalances(
             this,
@@ -355,6 +356,7 @@ export const createEthereumWalletClient = (
             customProvider,
             obscuredWalletAddress,
           );
+          balanceFound = true;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           debug(`Error getting balances using provider ${providerName}: ${errorMessage}`);
