@@ -360,7 +360,7 @@ class EthereumInitializationService {
         this.logDebug(`Found an Etherscan key (masked): ${this.maskKey(process.env.ETHERSCAN_API_KEY)}`);
         apiKeyTestInfo.push({
           provider: 'Etherscan',
-          url: `https://api.etherscan.io/api?module=account&action=balance&address=${testAddress}&tag=latest&apikey=${process.env.ETHERSCAN_API_KEY}`,
+          url: `https://api.etherscan.io/v2/api?chainid=1&module=account&action=balance&address=${testAddress}&tag=latest&apikey=${process.env.ETHERSCAN_API_KEY}`,
           responseHandler: this.handleEtherscanResponse,
         });
       }
@@ -381,7 +381,7 @@ class EthereumInitializationService {
   private handleEtherscanResponse = async (response: Response): Promise<ProviderInfo> => {
     const data = await response.json();
     if (data.status === '0' && data.message === 'NOTOK') {
-      throw new Error(`Etherscan API error: ${data.result}`);
+      throw new Error(`Etherscan V2 API error: ${data.result}`);
     }
     console.log('[DEBUG_ETHEREUM] Etherscan API key test: SUCCESS');
     return {
