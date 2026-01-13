@@ -60,6 +60,7 @@ function runTest(scenario, failOnError) {
     const options = { env };
 
     console.log(`Running: ${scenario.description} with DEBUG_ETHEREUM_FAIL_ON_ERROR=${failOnError}`);
+    console.log(`Expected Result: ${scenario.expected[failOnError]}`);
     exec(command, options, (error, stdout, stderr) => {
       const result = {
         description: scenario.description,
