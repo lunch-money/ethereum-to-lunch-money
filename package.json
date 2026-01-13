@@ -9,7 +9,7 @@
     "url": "https://github.com/lunch-money/ethereum-to-lunch-money/issues"
   },
   "homepage": "https://github.com/lunch-money/ethereum-to-lunch-money#README",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "license": "MIT",
   "keywords": [
     "lunch money",
@@ -81,7 +81,7 @@
   },
   "dependencies": {
     "@mycrypto/eth-scan": "^3.5.3",
-    "ethers": "^6.13.5"
+    "ethers": "^6.16.0"
   },
   "types": "./dist/cjs/src/main.d.ts",
   "directories": {
