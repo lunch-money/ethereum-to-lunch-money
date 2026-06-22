@@ -90,7 +90,19 @@ export class EtherscanProvider {
         uniqueTokens.add(tx.contractAddress);
       }
 
-      if (data.result.length < pageSize || page >= 10) {
+      if (data.result.length < pageSize) {
+        break;
+      }
+
+      // Etherscan enforces a hard maximum of 10 pages: page 11 always returns
+      // "Result window is too large" regardless of offset size. This is not
+      // configurable — it applies even with ETHERSCAN_PAGE_SIZE=5 (50 records total).
+      // Wallets with more than 10 * pageSize transfer events will have older
+      // token history truncated here; Moralis (primary provider) does not have this limit.
+      if (page >= 10) {
+        debug(
+          `Etherscan: reached 10-page hard limit for ${obscuredAddress} — token discovery may be incomplete for high-activity wallets`,
+        );
         break;
       }
 
