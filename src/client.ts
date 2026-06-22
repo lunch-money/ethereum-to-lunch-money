@@ -168,6 +168,7 @@ export class MoralisProvider {
 export const createEthereumWalletClient = (
   serviceProviderInfo: ProviderInfo[] = [],
   walletAPIProviderInfo: ProviderInfo[] = [],
+  getTokensBalanceFn: typeof ethscan.getTokensBalance = ethscan.getTokensBalance,
 ): EthereumWalletClient => {
   let providers: ReadonlyArray<ProviderInfo> = [];
   let etherscanProvider: EtherscanProvider | null = null;
@@ -285,7 +286,7 @@ export const createEthereumWalletClient = (
 
           debug(`Wallet ${obscuredWalletAddress}: Checking balances for ETH and ${filteredTokens.length} other tokens`);
 
-          const map = await ethscan.getTokensBalance(
+          const map = await getTokensBalanceFn(
             customProvider,
             walletAddress,
             filteredTokens.map((t) => t.address),
@@ -387,7 +388,7 @@ export const createEthereumWalletClient = (
     },
     async getTokensBalance(walletAddress: string, tokenContractAddresses: string[], providerInfo: ProviderInfo) {
       if (providerInfo.customProvider) {
-        return ethscan.getTokensBalance(providerInfo.customProvider, walletAddress, tokenContractAddresses);
+        return getTokensBalanceFn(providerInfo.customProvider, walletAddress, tokenContractAddresses);
       } else {
         throw new Error(`No ethscan compatible provider found for ${providerInfo.name}`);
       }
