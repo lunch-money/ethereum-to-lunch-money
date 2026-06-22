@@ -45,39 +45,50 @@ export interface EthereumWalletClient {
 export class EtherscanProvider {
   private apiKey: string;
   private baseUrl: string = 'https://api.etherscan.io/v2/api';
+  private fetchFn: typeof fetch;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, fetchFn: typeof fetch = fetch) {
     this.apiKey = apiKey;
+    this.fetchFn = fetchFn;
   }
 
   async discoverTokensForWallet(address: string, chainId?: bigint): Promise<string[]> {
-    // Use chainId from provider, default to Ethereum mainnet (1)
     const targetChainId = chainId ? Number(chainId) : 1;
-
-    const response = await fetch(
-      `${this.baseUrl}?chainid=${targetChainId}&module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${this.apiKey}`,
-    );
-
-    const data = await response.json();
-
-    // Handle valid "no transactions" response
-    if (data.status === '0' && data.message === 'No transactions found') {
-      return [];
-    }
-
-    // Handle API errors
-    if (data.status === '0' && data.message === 'NOTOK') {
-      throw new Error(`Etherscan V2 API error: ${data.result}`);
-    }
-
-    if (data.status !== '1') {
-      throw new Error(`Etherscan V2 API error: ${data.message}`);
-    }
-
-    // Extract unique token contract addresses from transfer events
+    const pageSize = process.env.ETHERSCAN_PAGE_SIZE ? parseInt(process.env.ETHERSCAN_PAGE_SIZE) : 1000;
     const uniqueTokens = new Set<string>();
-    for (const tx of data.result) {
-      uniqueTokens.add(tx.contractAddress);
+    let page = 1;
+
+    while (true) {
+      const response = await this.fetchFn(
+        `${this.baseUrl}?chainid=${targetChainId}&module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=desc&page=${page}&offset=${pageSize}&apikey=${this.apiKey}`,
+      );
+
+      const data = await response.json();
+
+      if (data.status === '0' && data.message === 'No transactions found') {
+        break;
+      }
+
+      if (data.status === '0' && data.message === 'NOTOK') {
+        throw new Error(`Etherscan V2 API error: ${data.result}`);
+      }
+
+      if (data.status !== '1') {
+        throw new Error(`Etherscan V2 API error: ${data.message}`);
+      }
+
+      for (const tx of data.result) {
+        uniqueTokens.add(tx.contractAddress);
+      }
+
+      if (data.result.length < pageSize || page >= 10) {
+        break;
+      }
+
+      // Stay under Etherscan's free tier limit of 3 calls/sec
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      page++;
+      debug(`Etherscan: fetching page ${page} for address ${address}`);
     }
 
     return Array.from(uniqueTokens);
@@ -383,6 +394,7 @@ export const createEthereumWalletClient = (
     },
     async discoverTokensHybrid(walletAddress: string, chainId: bigint): Promise<string[]> {
       const allTokens = new Set<string>();
+      let discoverySucceeded = false;
 
       // 1. Moralis Discovery (PRIMARY)
       if (moralisProvider) {
@@ -390,6 +402,7 @@ export const createEthereumWalletClient = (
           const moralisTokens = await moralisProvider.discoverTokensForWallet(walletAddress, chainId);
           debug(`Moralis: Discovered ${moralisTokens.length} tokens`);
           moralisTokens.forEach((t) => allTokens.add(t));
+          discoverySucceeded = true;
         } catch (error) {
           debug(`Moralis: Failed - ${error instanceof Error ? error.message : String(error)}`);
 
@@ -399,6 +412,7 @@ export const createEthereumWalletClient = (
               const etherscanTokens = await etherscanProvider.discoverTokensForWallet(walletAddress, chainId);
               debug(`Etherscan (fallback): Discovered ${etherscanTokens.length} tokens`);
               etherscanTokens.forEach((t) => allTokens.add(t));
+              discoverySucceeded = true;
             } catch (fallbackError) {
               debug(
                 `Etherscan (fallback): Failed - ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
@@ -417,12 +431,17 @@ export const createEthereumWalletClient = (
             const etherscanTokens = await etherscanProvider.discoverTokensForWallet(walletAddress, chainId);
             debug(`Etherscan: Discovered ${etherscanTokens.length} tokens`);
             etherscanTokens.forEach((t) => allTokens.add(t));
+            discoverySucceeded = true;
           } catch (error) {
             debug(`Etherscan: Failed - ${error instanceof Error ? error.message : String(error)}`);
           }
         } else {
           debug('Etherscan: No API key provided');
         }
+      }
+
+      if (!discoverySucceeded) {
+        throw new Error('All token discovery providers failed');
       }
 
       return Array.from(allTokens);

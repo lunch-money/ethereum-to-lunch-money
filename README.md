@@ -52,6 +52,8 @@ Tweaking this to about 1000-2000, and watching the debug messages can be useful 
 
 Whenever the values of the Ethereum Service Provider keys are updated in an environment it is suggested to temporarily set DEBUG_ETHEREUM_FAIL_ON_ERROR to true and to watch the console messages on startup. If the app reports that all keys are valid and does not exit, then remove the environment variable prior to a final deploy.
 
+- ETHERSCAN_PAGE_SIZE - overrides the number of ERC20 transfer records fetched per page when using Etherscan for token discovery (default: 1000, maximum enforced by Etherscan). Set to a small value like 5 when testing pagination behavior against a wallet with many transactions, e.g. `ETHERSCAN_PAGE_SIZE=5 DEBUG_ETHEREUM=true yarn test-live`.
+
 ## Live Testing
 
 There is a script, `get-balances.ts`, that can be invoked to invoke the client against a real or test wallet. This mimics the behavior of the Lunch Money server when a user attempts to connect an Ethereum wallet. 
