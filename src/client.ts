@@ -56,14 +56,22 @@ export class EtherscanProvider {
     const targetChainId = chainId ? Number(chainId) : 1;
     const pageSize = process.env.ETHERSCAN_PAGE_SIZE ? parseInt(process.env.ETHERSCAN_PAGE_SIZE) : 1000;
     const uniqueTokens = new Set<string>();
+    const obscuredAddress = `0x..${address.slice(-6)}`;
     let page = 1;
+    let totalEvents = 0;
 
     while (true) {
-      const response = await this.fetchFn(
-        `${this.baseUrl}?chainid=${targetChainId}&module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=desc&page=${page}&offset=${pageSize}&apikey=${this.apiKey}`,
-      );
+      const url = `${this.baseUrl}?chainid=${targetChainId}&module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=desc&page=${page}&offset=${pageSize}&apikey=${this.apiKey}`;
 
-      const data = await response.json();
+      let data: { status: string; message: string; result: { contractAddress: string }[] };
+      try {
+        const response = await this.fetchFn(url);
+        data = (await response.json()) as typeof data;
+      } catch (error) {
+        const msg =
+          error instanceof Error ? error.message.replace(/apikey=[^&\s]+/gi, 'apikey=[redacted]') : String(error);
+        throw new Error(`Etherscan API network error on page ${page} for ${obscuredAddress}: ${msg}`);
+      }
 
       if (data.status === '0' && data.message === 'No transactions found') {
         break;
@@ -77,6 +85,7 @@ export class EtherscanProvider {
         throw new Error(`Etherscan V2 API error: ${data.message}`);
       }
 
+      totalEvents += data.result.length;
       for (const tx of data.result) {
         uniqueTokens.add(tx.contractAddress);
       }
@@ -88,9 +97,12 @@ export class EtherscanProvider {
       // Stay under Etherscan's free tier limit of 3 calls/sec
       await new Promise((resolve) => setTimeout(resolve, 400));
       page++;
-      debug(`Etherscan: fetching page ${page} for address ${address}`);
+      debug(`Etherscan: fetching page ${page} for ${obscuredAddress}`);
     }
 
+    debug(
+      `Etherscan: fetched ${totalEvents} transfer events across ${page} page(s), discovered ${uniqueTokens.size} unique tokens for ${obscuredAddress}`,
+    );
     return Array.from(uniqueTokens);
   }
 }
@@ -372,7 +384,11 @@ export const createEthereumWalletClient = (
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           debug(`Error getting balances using provider ${providerName}: ${errorMessage}`);
-          if (errorMessage.includes('unconfigured name') || errorMessage.includes('bad address checksum')) {
+          if (
+            errorMessage.includes('unconfigured name') ||
+            errorMessage.includes('bad address checksum') ||
+            errorMessage.includes('invalid ENS name')
+          ) {
             throw new Error(`Invalid wallet address. Account needs to be relinked.`);
           } else if (providerIndex === providers.length - 1) {
             throw error;

@@ -78,6 +78,35 @@ describe('createEthereumWalletClient', () => {
       });
     });
 
+    describe('when the wallet address is invalid', () => {
+      it('throws a clean error for non-Ethereum addresses (e.g. base64-encoded values)', async () => {
+        const badProvider = {
+          getBalance: sinon
+            .stub()
+            .rejects(
+              new Error(
+                'invalid ENS name (disallowed character: "+" {2B}) (argument="name", value="tEh2qOJbTagSEKa2wOJSpFfwb6zkQ4+42mgmUc1DgennWAdgBilvqeDK8oeJrAeWOO7uuy5ZqoOEz7MRuMlNbw==", code=INVALID_ARGUMENT, version=6.16.0)',
+              ),
+            ),
+          getNetwork: sinon.stub().resolves({ chainId: BigInt(chainIds.mainnet) }),
+          call: sinon.stub().resolves('0x'),
+        } as unknown as AbstractProvider;
+        const getTokensBalance = sinon.stub().resolves({});
+        const client = createEthereumWalletClient(makeServiceProviderInfo(badProvider), [], getTokensBalance);
+
+        try {
+          await client.getBalances(
+            'tEh2qOJbTagSEKa2wOJSpFfwb6zkQ4+42mgmUc1DgennWAdgBilvqeDK8oeJrAeWOO7uuy5ZqoOEz7MRuMlNbw==',
+            NEGLIGIBLE_BALANCE_THRESHOLD,
+          );
+          assert.fail('Expected error was not thrown');
+        } catch (error) {
+          assert.instanceOf(error, Error);
+          assert.match((error as Error).message, /Invalid wallet address/);
+        }
+      });
+    });
+
     describe('with respect to chains', () => {
       it('should support chains outside of mainnet', async () => {
         const getTokensBalance = sinon.stub().resolves({});
