@@ -45,41 +45,76 @@ export interface EthereumWalletClient {
 export class EtherscanProvider {
   private apiKey: string;
   private baseUrl: string = 'https://api.etherscan.io/v2/api';
+  private fetchFn: typeof fetch;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, fetchFn: typeof fetch = fetch) {
     this.apiKey = apiKey;
+    this.fetchFn = fetchFn;
   }
 
   async discoverTokensForWallet(address: string, chainId?: bigint): Promise<string[]> {
-    // Use chainId from provider, default to Ethereum mainnet (1)
     const targetChainId = chainId ? Number(chainId) : 1;
-
-    const response = await fetch(
-      `${this.baseUrl}?chainid=${targetChainId}&module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${this.apiKey}`,
-    );
-
-    const data = await response.json();
-
-    // Handle valid "no transactions" response
-    if (data.status === '0' && data.message === 'No transactions found') {
-      return [];
-    }
-
-    // Handle API errors
-    if (data.status === '0' && data.message === 'NOTOK') {
-      throw new Error(`Etherscan V2 API error: ${data.result}`);
-    }
-
-    if (data.status !== '1') {
-      throw new Error(`Etherscan V2 API error: ${data.message}`);
-    }
-
-    // Extract unique token contract addresses from transfer events
+    const pageSize = process.env.ETHERSCAN_PAGE_SIZE ? parseInt(process.env.ETHERSCAN_PAGE_SIZE) : 1000;
     const uniqueTokens = new Set<string>();
-    for (const tx of data.result) {
-      uniqueTokens.add(tx.contractAddress);
+    const obscuredAddress = `0x..${address.slice(-6)}`;
+    let page = 1;
+    let totalEvents = 0;
+
+    while (true) {
+      const url = `${this.baseUrl}?chainid=${targetChainId}&module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=desc&page=${page}&offset=${pageSize}&apikey=${this.apiKey}`;
+
+      let data: { status: string; message: string; result: { contractAddress: string }[] };
+      try {
+        const response = await this.fetchFn(url);
+        data = (await response.json()) as typeof data;
+      } catch (error) {
+        const msg =
+          error instanceof Error ? error.message.replace(/apikey=[^&\s]+/gi, 'apikey=[redacted]') : String(error);
+        throw new Error(`Etherscan API network error on page ${page} for ${obscuredAddress}: ${msg}`);
+      }
+
+      if (data.status === '0' && data.message === 'No transactions found') {
+        break;
+      }
+
+      if (data.status === '0' && data.message === 'NOTOK') {
+        throw new Error(`Etherscan V2 API error: ${data.result}`);
+      }
+
+      if (data.status !== '1') {
+        throw new Error(`Etherscan V2 API error: ${data.message}`);
+      }
+
+      totalEvents += data.result.length;
+      for (const tx of data.result) {
+        uniqueTokens.add(tx.contractAddress);
+      }
+
+      if (data.result.length < pageSize) {
+        break;
+      }
+
+      // Etherscan enforces a hard maximum of 10 pages: page 11 always returns
+      // "Result window is too large" regardless of offset size. This is not
+      // configurable — it applies even with ETHERSCAN_PAGE_SIZE=5 (50 records total).
+      // Wallets with more than 10 * pageSize transfer events will have older
+      // token history truncated here; Moralis (primary provider) does not have this limit.
+      if (page >= 10) {
+        debug(
+          `Etherscan: reached 10-page hard limit for ${obscuredAddress} — token discovery may be incomplete for high-activity wallets`,
+        );
+        break;
+      }
+
+      // Stay under Etherscan's free tier limit of 3 calls/sec
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      page++;
+      debug(`Etherscan: fetching page ${page} for ${obscuredAddress}`);
     }
 
+    debug(
+      `Etherscan: fetched ${totalEvents} transfer events across ${page} page(s), discovered ${uniqueTokens.size} unique tokens for ${obscuredAddress}`,
+    );
     return Array.from(uniqueTokens);
   }
 }
@@ -157,6 +192,7 @@ export class MoralisProvider {
 export const createEthereumWalletClient = (
   serviceProviderInfo: ProviderInfo[] = [],
   walletAPIProviderInfo: ProviderInfo[] = [],
+  getTokensBalanceFn: typeof ethscan.getTokensBalance = ethscan.getTokensBalance,
 ): EthereumWalletClient => {
   let providers: ReadonlyArray<ProviderInfo> = [];
   let etherscanProvider: EtherscanProvider | null = null;
@@ -274,7 +310,7 @@ export const createEthereumWalletClient = (
 
           debug(`Wallet ${obscuredWalletAddress}: Checking balances for ETH and ${filteredTokens.length} other tokens`);
 
-          const map = await ethscan.getTokensBalance(
+          const map = await getTokensBalanceFn(
             customProvider,
             walletAddress,
             filteredTokens.map((t) => t.address),
@@ -360,7 +396,11 @@ export const createEthereumWalletClient = (
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           debug(`Error getting balances using provider ${providerName}: ${errorMessage}`);
-          if (errorMessage.includes('unconfigured name') || errorMessage.includes('bad address checksum')) {
+          if (
+            errorMessage.includes('unconfigured name') ||
+            errorMessage.includes('bad address checksum') ||
+            errorMessage.includes('invalid ENS name')
+          ) {
             throw new Error(`Invalid wallet address. Account needs to be relinked.`);
           } else if (providerIndex === providers.length - 1) {
             throw error;
@@ -376,13 +416,14 @@ export const createEthereumWalletClient = (
     },
     async getTokensBalance(walletAddress: string, tokenContractAddresses: string[], providerInfo: ProviderInfo) {
       if (providerInfo.customProvider) {
-        return ethscan.getTokensBalance(providerInfo.customProvider, walletAddress, tokenContractAddresses);
+        return getTokensBalanceFn(providerInfo.customProvider, walletAddress, tokenContractAddresses);
       } else {
         throw new Error(`No ethscan compatible provider found for ${providerInfo.name}`);
       }
     },
     async discoverTokensHybrid(walletAddress: string, chainId: bigint): Promise<string[]> {
       const allTokens = new Set<string>();
+      let discoverySucceeded = false;
 
       // 1. Moralis Discovery (PRIMARY)
       if (moralisProvider) {
@@ -390,6 +431,7 @@ export const createEthereumWalletClient = (
           const moralisTokens = await moralisProvider.discoverTokensForWallet(walletAddress, chainId);
           debug(`Moralis: Discovered ${moralisTokens.length} tokens`);
           moralisTokens.forEach((t) => allTokens.add(t));
+          discoverySucceeded = true;
         } catch (error) {
           debug(`Moralis: Failed - ${error instanceof Error ? error.message : String(error)}`);
 
@@ -399,6 +441,7 @@ export const createEthereumWalletClient = (
               const etherscanTokens = await etherscanProvider.discoverTokensForWallet(walletAddress, chainId);
               debug(`Etherscan (fallback): Discovered ${etherscanTokens.length} tokens`);
               etherscanTokens.forEach((t) => allTokens.add(t));
+              discoverySucceeded = true;
             } catch (fallbackError) {
               debug(
                 `Etherscan (fallback): Failed - ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
@@ -417,12 +460,17 @@ export const createEthereumWalletClient = (
             const etherscanTokens = await etherscanProvider.discoverTokensForWallet(walletAddress, chainId);
             debug(`Etherscan: Discovered ${etherscanTokens.length} tokens`);
             etherscanTokens.forEach((t) => allTokens.add(t));
+            discoverySucceeded = true;
           } catch (error) {
             debug(`Etherscan: Failed - ${error instanceof Error ? error.message : String(error)}`);
           }
         } else {
           debug('Etherscan: No API key provided');
         }
+      }
+
+      if (!discoverySucceeded) {
+        throw new Error('All token discovery providers failed');
       }
 
       return Array.from(allTokens);
